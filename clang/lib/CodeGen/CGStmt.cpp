@@ -32,6 +32,7 @@
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/InlineAsm.h"
 #include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/MDBuilder.h"
 #include "llvm/Support/SaveAndRestore.h"
 #include <optional>
@@ -1035,7 +1036,12 @@ void CodeGenFunction::EmitWhileStmt(const WhileStmt &S,
     if (!Weights && CGM.getCodeGenOpts().OptimizationLevel)
       BoolCondVal = emitCondLikelihoodViaExpectIntrinsic(
           BoolCondVal, Stmt::getLikelihood(S.getBody()));
-    Builder.CreateCondBr(BoolCondVal, LoopBody, ExitBlock, Weights);
+    auto *Branch =
+        Builder.CreateCondBr(BoolCondVal, LoopBody, ExitBlock, Weights);
+    // Appending the profle count metadata on the Branch instruction for the
+    // profile count
+    Branch->setMetadata(llvm::LLVMContext::MD_prof_count,
+                        createProfileCount(getProfileCount(S.getBody())));
 
     if (ExitBlock != LoopExit.getBlock()) {
       EmitBlock(ExitBlock);
@@ -1148,9 +1154,13 @@ void CodeGenFunction::EmitDoStmt(const DoStmt &S,
   // As long as the condition is true, iterate the loop.
   if (EmitBoolCondBranch) {
     uint64_t BackedgeCount = getProfileCount(S.getBody()) - ParentCount;
-    Builder.CreateCondBr(
+    auto *Branch = Builder.CreateCondBr(
         BoolCondVal, LoopBody, LoopExit.getBlock(),
         createProfileWeightsForLoop(S.getCond(), BackedgeCount));
+    // Appending the profile count metadata on the Branch instruction for the
+    // profile count
+    Branch->setMetadata(llvm::LLVMContext::MD_prof_count,
+                        createProfileCount(getProfileCount(S.getBody())));
   }
 
   LoopStack.pop();
@@ -1251,7 +1261,12 @@ void CodeGenFunction::EmitForStmt(const ForStmt &S,
       BoolCondVal = emitCondLikelihoodViaExpectIntrinsic(
           BoolCondVal, Stmt::getLikelihood(S.getBody()));
 
-    Builder.CreateCondBr(BoolCondVal, ForBody, ExitBlock, Weights);
+    auto *Branch =
+        Builder.CreateCondBr(BoolCondVal, ForBody, ExitBlock, Weights);
+    // Appending the profile count metadata on the Branch instruction for the
+    // profile count
+    Branch->setMetadata(llvm::LLVMContext::MD_prof_count,
+                        createProfileCount(getProfileCount(S.getBody())));
 
     if (ExitBlock != LoopExit.getBlock()) {
       EmitBlock(ExitBlock);
@@ -1353,7 +1368,11 @@ CodeGenFunction::EmitCXXForRangeStmt(const CXXForRangeStmt &S,
   if (!Weights && CGM.getCodeGenOpts().OptimizationLevel)
     BoolCondVal = emitCondLikelihoodViaExpectIntrinsic(
         BoolCondVal, Stmt::getLikelihood(S.getBody()));
-  Builder.CreateCondBr(BoolCondVal, ForBody, ExitBlock, Weights);
+  auto *Branch = Builder.CreateCondBr(BoolCondVal, ForBody, ExitBlock, Weights);
+  // Appending the profile count metadata  on the Branch instruction for the
+  // profile count
+  Branch->setMetadata(llvm::LLVMContext::MD_prof_count,
+                      createProfileCount(getProfileCount(S.getBody())));
 
   if (ExitBlock != LoopExit.getBlock()) {
     EmitBlock(ExitBlock);

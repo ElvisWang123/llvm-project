@@ -26,6 +26,10 @@
 namespace llvm {
 extern cl::opt<bool> EnableSingleByteCoverage;
 } // namespace llvm
+static llvm::cl::opt<bool> ClEnableProfileCountMetadata(
+    "enable-profile-count-metadata",
+    llvm::cl::desc("Appending real executation count of loops from runtime"),
+    llvm::cl::Hidden, llvm::cl::init(false));
 
 static llvm::cl::opt<bool>
     EnableValueProfiling("enable-value-profiling",
@@ -1497,4 +1501,11 @@ CodeGenFunction::createProfileWeightsForLoop(const Stmt *Cond,
     return nullptr;
   return createProfileWeights(LoopCount,
                               std::max(*CondCount, LoopCount) - LoopCount);
+}
+
+llvm::MDNode *CodeGenFunction::createProfileCount(uint64_t Count) const {
+  if (!PGO.haveRegionCounts() || !ClEnableProfileCountMetadata)
+    return nullptr;
+  llvm::MDBuilder MDHelper(CGM.getLLVMContext());
+  return MDHelper.createProfileCount(Count);
 }
