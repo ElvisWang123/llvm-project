@@ -1901,16 +1901,14 @@ InstructionCost RISCVTTIImpl::getVectorInstrCost(unsigned Opcode, Type *Val,
       VectorType::get(IntegerType::get(Val->getContext(), 8),
                       cast<VectorType>(Val)->getElementCount());
     if (Opcode == Instruction::ExtractElement) {
-      InstructionCost ExtendCost =
-          getCastInstrCost(Instruction::ZExt, WideTy, Val,
-                           TTI::CastContextHint::None, CostKind);
+      InstructionCost ExtendCost = getCastInstrCost(
+          Instruction::ZExt, WideTy, Val, TTI::CastContextHint::None, CostKind);
       InstructionCost ExtractCost =
           getVectorInstrCost(Opcode, WideTy, CostKind, Index, nullptr, nullptr);
       return ExtendCost + ExtractCost;
     }
-    InstructionCost ExtendCost =
-        getCastInstrCost(Instruction::ZExt, WideTy, Val,
-                         TTI::CastContextHint::None, CostKind);
+    InstructionCost ExtendCost = getCastInstrCost(
+        Instruction::ZExt, WideTy, Val, TTI::CastContextHint::None, CostKind);
     InstructionCost InsertCost
       = getVectorInstrCost(Opcode, WideTy, CostKind, Index, nullptr, nullptr);
     InstructionCost TruncCost = getCastInstrCost(
@@ -1920,19 +1918,32 @@ InstructionCost RISCVTTIImpl::getVectorInstrCost(unsigned Opcode, Type *Val,
 
   // In RVV, we could use vslidedown + vmv.x.s to extract element from vector
   // and vslideup + vmv.s.x to insert element to vector.
-  InstructionCost BaseCost = 1;
+  InstructionCost BaseCost;
   InstructionCost V2SCost =
+      getRISCVInstructionCost(RISCV::VMV_X_S, LT.second, CostKind);
+  InstructionCost S2VCost =
       getRISCVInstructionCost(RISCV::VMV_S_X, LT.second, CostKind);
   // Model the vector-to-scalar communication cost
   if (Opcode == Instruction::ExtractElement)
     BaseCost = V2SCost;
-  // When insertelement we should add the index with 1 as the input of
-  // vslideup.vx.
+  else
+    BaseCost = S2VCost;
   InstructionCost SlideCost = Opcode == Instruction::InsertElement ? 2 : 1;
-  if (Opcode == Instruction::ExtractElement && CostKind != TTI::TCK_CodeSize &&
-      Index == -1U)
+  if (Opcode == Instruction::InsertElement) {
     SlideCost =
         getRISCVInstructionCost(RISCV::VSLIDEUP_VX, LT.second, CostKind);
+    // Add index with 1 when insert the element.
+    if (Index == -1U)
+      SlideCost += 1;
+  } else {
+    SlideCost =
+        getRISCVInstructionCost(RISCV::VSLIDEDOWN_VX, LT.second, CostKind);
+  }
+  // if (Opcode == Instruction::ExtractElement && CostKind != TTI::TCK_CodeSize
+  // &&
+  //     Index == -1U)
+  //   SlideCost =
+  //       getRISCVInstructionCost(RISCV::VSLIDEDOWN_VX, LT.second, CostKind);
 
   if (Index != -1U) {
     // The type may be split. For fixed-width vectors we can normalize the
@@ -1953,12 +1964,12 @@ InstructionCost RISCVTTIImpl::getVectorInstrCost(unsigned Opcode, Type *Val,
     // We could extract/insert the first element without vslidedown/vslideup.
     if (Index == 0)
       SlideCost = 0;
-    else if (Opcode == Instruction::InsertElement)
-      SlideCost = 1; // With a constant index, we do not need to use addi.
+    //else if (Opcode == Instruction::InsertElement)
+    //  SlideCost = 1; // With a constant index, we do not need to use addi.
   }
 
-  // If the the index exceed a single vector register, we cannot use vslidedown
-  // to extract element.
+  // If the the index exceed a single vector register and need more than one
+  // register group, we cannot directly use vslidedown to extract element.
   if (Opcode == Instruction::ExtractElement && LT.first > 1 &&
       ((Index == -1U) ||
        (Index * Val->getScalarSizeInBits() >= ST->getRealMinVLen() &&
@@ -1999,6 +2010,7 @@ InstructionCost RISCVTTIImpl::getVectorInstrCost(unsigned Opcode, Type *Val,
     // TODO: should we count these special vsetvlis?
     BaseCost = Opcode == Instruction::InsertElement ? 3 : 4;
   }
+  errs() << "SlideCost" << SlideCost << ":";
   return BaseCost + SlideCost;
 }
 

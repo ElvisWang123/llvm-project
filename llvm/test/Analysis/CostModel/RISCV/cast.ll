@@ -6965,14 +6965,14 @@ define void @oddvec_sizes() {
 ; infinite recursion between cast costing and scalarization costing.
 define void @legalization_crash() {
 ; CHECK-LABEL: 'legalization_crash'
-; CHECK-NEXT:  Cost Model: Found an estimated cost of 16700 for instruction: %1 = bitcast <24 x i8> undef to <192 x i1>
+; CHECK-NEXT:  Cost Model: Found an estimated cost of 18030 for instruction: %1 = bitcast <24 x i8> undef to <192 x i1>
 ; CHECK-NEXT:  Cost Model: Found an estimated cost of 33 for instruction: %2 = trunc <192 x i8> undef to <192 x i1>
 ; CHECK-NEXT:  Cost Model: Found an estimated cost of 25 for instruction: %3 = zext <192 x i1> undef to <192 x i8>
 ; CHECK-NEXT:  Cost Model: Found an estimated cost of 25 for instruction: %4 = sext <192 x i1> undef to <192 x i8>
-; CHECK-NEXT:  Cost Model: Found an estimated cost of 948 for instruction: %5 = sitofp <192 x i1> undef to <192 x float>
-; CHECK-NEXT:  Cost Model: Found an estimated cost of 948 for instruction: %6 = uitofp <192 x i1> undef to <192 x float>
-; CHECK-NEXT:  Cost Model: Found an estimated cost of 16892 for instruction: %7 = fptosi <192 x float> undef to <192 x i1>
-; CHECK-NEXT:  Cost Model: Found an estimated cost of 16892 for instruction: %8 = fptoui <192 x float> undef to <192 x i1>
+; CHECK-NEXT:  Cost Model: Found an estimated cost of 2250 for instruction: %5 = sitofp <192 x i1> undef to <192 x float>
+; CHECK-NEXT:  Cost Model: Found an estimated cost of 2250 for instruction: %6 = uitofp <192 x i1> undef to <192 x float>
+; CHECK-NEXT:  Cost Model: Found an estimated cost of 18222 for instruction: %7 = fptosi <192 x float> undef to <192 x i1>
+; CHECK-NEXT:  Cost Model: Found an estimated cost of 18222 for instruction: %8 = fptoui <192 x float> undef to <192 x i1>
 ; CHECK-NEXT:  Cost Model: Found an estimated cost of 0 for instruction: ret void
 ;
   bitcast <24 x i8> undef to <192 x i1>
