@@ -836,19 +836,32 @@ bool VPInstruction::onlyFirstPartUsed(const VPValue *Op) const {
 
 InstructionCost VPInstruction::computeCost(ElementCount VF,
                                            VPCostContext &Ctx) const {
-  Type *ValTy = Ctx.Types.inferScalarType(getOperand(0));
 
   switch (getOpcode()) {
   case VPInstruction::BranchOnCount: {
-    // BranchOnCount will genearte icmp_eq + br instructions and the
-    // cost of branch will be calculated in VPRegionBlock.
-    // If the vector loop only executed once, ignore the cost of the cmp.
+    Type *ValTy = Ctx.Types.inferScalarType(getOperand(0));
+
+    // If the vector loop only executed once, ignore the cost.
+    // TODO: We can remove this after hoist `unrollByUF` and
+    // `optimizeForVFandUF` which will should optimize BranchOnCount out.
     auto TC = dyn_cast_if_present<ConstantInt>(
         getParent()->getPlan()->getTripCount()->getUnderlyingValue());
     if (TC && VF.isFixed() && TC->getSExtValue() == VF.getFixedValue())
       return 0;
+
+    // BranchOnCount will generate icmp_eq + br instructions and the
+    // cost of branch will be calculated in VPRegionBlock.
     return Ctx.TTI.getCmpSelInstrCost(Instruction::ICmp, ValTy, nullptr,
                                       CmpInst::ICMP_EQ, Ctx.CostKind);
+  }
+  case VPInstruction::BranchOnCond: {
+    // BranchOnCond will generate `extractelement` when the condition is vector
+    // type.
+    if (auto *VTy = dyn_cast<VectorType>(
+            toVectorTy(Ctx.Types.inferScalarType(getOperand(0)), VF)))
+      return Ctx.TTI.getVectorInstrCost(Instruction::ExtractElement, VTy,
+                                        Ctx.CostKind, 0, nullptr, nullptr);
+    return 0;
   }
   default:
     // TODO: Compute accurate cost after retiring the legacy cost model.
