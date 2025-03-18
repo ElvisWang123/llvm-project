@@ -2984,7 +2984,7 @@ public:
                                              std::optional<FastMathFlags> FMF,
                                              TTI::TargetCostKind CostKind) {
     assert(Ty && "Unknown reduction vector type");
-    if (TTI::requiresOrderedReduction(FMF))
+    if (TTI::requiresOrderedReduction(FMF) && Ty->isFPOrFPVectorTy())
       return getOrderedReductionCost(Opcode, Ty, CostKind);
     return getTreeReductionCost(Opcode, Ty, CostKind);
   }

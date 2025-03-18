@@ -1766,7 +1766,7 @@ ARMTTIImpl::getArithmeticReductionCost(unsigned Opcode, VectorType *ValTy,
   }
 
   if (!ST->hasMVEIntegerOps() || !ValVT.isSimple() || ISD != ISD::ADD ||
-      TTI::requiresOrderedReduction(FMF))
+      (TTI::requiresOrderedReduction(FMF) && ValTy->isFPOrFPVectorTy()))
     return BaseT::getArithmeticReductionCost(Opcode, ValTy, FMF, CostKind);
 
   std::pair<InstructionCost, MVT> LT = getTypeLegalizationCost(ValTy);

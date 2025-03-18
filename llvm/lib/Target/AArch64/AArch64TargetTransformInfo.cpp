@@ -4654,7 +4654,7 @@ AArch64TTIImpl::getArithmeticReductionCost(unsigned Opcode, VectorType *ValTy,
     if (VTy->getElementCount() == ElementCount::getScalable(1))
       return InstructionCost::getInvalid();
 
-  if (TTI::requiresOrderedReduction(FMF)) {
+  if (TTI::requiresOrderedReduction(FMF) && ValTy->isFPOrFPVectorTy()) {
     if (auto *FixedVTy = dyn_cast<FixedVectorType>(ValTy)) {
       InstructionCost BaseCost =
           BaseT::getArithmeticReductionCost(Opcode, ValTy, FMF, CostKind);
