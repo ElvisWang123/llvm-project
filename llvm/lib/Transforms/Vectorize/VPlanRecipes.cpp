@@ -610,6 +610,14 @@ Value *VPInstruction::generate(VPTransformState &State) {
     BranchInst *CondBr = Builder.CreateCondBr(Cond, Builder.GetInsertBlock(),
                                               State.CFG.VPBB2IRBB[Header]);
     CondBr->setSuccessor(0, nullptr);
+    VPBasicBlock *CurBB = getParent();
+
+    // This is for the conditional vector basic block that both of the
+    // destinations will be create in the future. Setting successors to nullptr
+    // and will be updated during destination creation.
+    if (CurBB->getNumSuccessors() == 2)
+      CondBr->setSuccessor(1, nullptr);
+
     Builder.GetInsertBlock()->getTerminator()->eraseFromParent();
     return CondBr;
   }
