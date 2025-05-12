@@ -1803,6 +1803,10 @@ public:
   /// otherwise scalar epilogue loop.
   bool preferEpilogueVectorization() const;
 
+  /// Return true if the loop vectorizer shoud consider vectorizing with
+  /// flattern control flow, otherwise create conditional vector basic block.
+  bool preferFlattenControlFlow() const;
+
   /// \returns True if the target wants to expand the given reduction intrinsic
   /// into a shuffle sequence.
   bool shouldExpandReduction(const IntrinsicInst *II) const;
