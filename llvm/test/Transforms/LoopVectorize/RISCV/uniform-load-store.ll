@@ -933,10 +933,9 @@ define void @uniform_load_store(ptr %p, ptr %q, i32 %n) {
 ; SCALABLE:       [[MIDDLE_BLOCK]]:
 ; SCALABLE-NEXT:    br label %[[EXIT:.*]]
 ; SCALABLE:       [[SCALAR_PH]]:
-; SCALABLE-NEXT:    [[BC_RESUME_VAL:%.*]] = phi i32 [ 0, %[[VECTOR_SCEVCHECK]] ], [ 0, %[[VECTOR_MEMCHECK]] ]
 ; SCALABLE-NEXT:    br label %[[LOOP:.*]]
 ; SCALABLE:       [[LOOP]]:
-; SCALABLE-NEXT:    [[IV:%.*]] = phi i32 [ [[BC_RESUME_VAL]], %[[SCALAR_PH]] ], [ [[IV_NEXT:%.*]], %[[LOOP]] ]
+; SCALABLE-NEXT:    [[IV:%.*]] = phi i32 [ 0, %[[SCALAR_PH]] ], [ [[IV_NEXT:%.*]], %[[LOOP]] ]
 ; SCALABLE-NEXT:    [[GEP:%.*]] = getelementptr i32, ptr [[P]], i32 [[IV]]
 ; SCALABLE-NEXT:    [[X:%.*]] = load i32, ptr [[GEP]], align 4
 ; SCALABLE-NEXT:    [[Y:%.*]] = add i32 [[X]], 1
@@ -982,7 +981,7 @@ define void @uniform_load_store(ptr %p, ptr %q, i32 %n) {
 ; FIXEDLEN-NEXT:    [[TMP9:%.*]] = add <8 x i32> [[WIDE_LOAD2]], splat (i32 1)
 ; FIXEDLEN-NEXT:    store <8 x i32> [[TMP8]], ptr [[TMP6]], align 4, !alias.scope [[META18]]
 ; FIXEDLEN-NEXT:    store <8 x i32> [[TMP9]], ptr [[TMP7]], align 4, !alias.scope [[META18]]
-; FIXEDLEN-NEXT:    [[TMP10:%.*]] = extractelement <8 x i32> [[TMP9]], i32 7
+; FIXEDLEN-NEXT:    [[TMP10:%.*]] = extractelement <8 x i32> [[TMP9]], i64 7
 ; FIXEDLEN-NEXT:    store i32 [[TMP10]], ptr [[Q]], align 4, !alias.scope [[META21:![0-9]+]], !noalias [[META18]]
 ; FIXEDLEN-NEXT:    [[INDEX_NEXT]] = add nuw i32 [[INDEX]], 16
 ; FIXEDLEN-NEXT:    [[TMP11:%.*]] = icmp eq i32 [[INDEX_NEXT]], [[N_VEC]]
@@ -1045,10 +1044,9 @@ define void @uniform_load_store(ptr %p, ptr %q, i32 %n) {
 ; TF-SCALABLE:       [[MIDDLE_BLOCK]]:
 ; TF-SCALABLE-NEXT:    br label %[[EXIT:.*]]
 ; TF-SCALABLE:       [[SCALAR_PH]]:
-; TF-SCALABLE-NEXT:    [[BC_RESUME_VAL:%.*]] = phi i32 [ 0, %[[VECTOR_SCEVCHECK]] ], [ 0, %[[VECTOR_MEMCHECK]] ]
 ; TF-SCALABLE-NEXT:    br label %[[LOOP:.*]]
 ; TF-SCALABLE:       [[LOOP]]:
-; TF-SCALABLE-NEXT:    [[IV:%.*]] = phi i32 [ [[BC_RESUME_VAL]], %[[SCALAR_PH]] ], [ [[IV_NEXT:%.*]], %[[LOOP]] ]
+; TF-SCALABLE-NEXT:    [[IV:%.*]] = phi i32 [ 0, %[[SCALAR_PH]] ], [ [[IV_NEXT:%.*]], %[[LOOP]] ]
 ; TF-SCALABLE-NEXT:    [[GEP:%.*]] = getelementptr i32, ptr [[P]], i32 [[IV]]
 ; TF-SCALABLE-NEXT:    [[X:%.*]] = load i32, ptr [[GEP]], align 4
 ; TF-SCALABLE-NEXT:    [[Y:%.*]] = add i32 [[X]], 1
