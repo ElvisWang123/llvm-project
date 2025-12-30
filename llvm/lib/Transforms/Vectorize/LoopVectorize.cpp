@@ -7077,6 +7077,9 @@ VPlanPtr LoopVectorizationPlanner::tryToBuildVPlan(VPlanPtr Plan,
     RUN_VPLAN_PASS(VPlanTransforms::addActiveLaneMask, *Plan, ForControlFlow);
   }
 
+  if (PreferControlFlow || TTI.preferControlFlowVectorization())
+    RUN_VPLAN_PASS(VPlanTransforms::optimizeConditionalVPBB, *Plan);
+
   assert(verifyVPlanIsValid(*Plan) && "VPlan is invalid");
   return Plan;
 }
