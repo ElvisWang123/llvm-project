@@ -19,6 +19,14 @@ define i32 @foo(i32 %TC, ptr %a, ptr %b) {
 ; CHECK-NEXT:    [[DIFF_CHECK:%.*]] = icmp ult i64 [[TMP3]], [[TMP2]]
 ; CHECK-NEXT:    br i1 [[DIFF_CHECK]], label [[SCALAR_PH:%.*]], label [[VECTOR_PH:%.*]]
 ; CHECK:       vector.ph:
+; CHECK-NEXT:    [[TMP11:%.*]] = call i64 @llvm.vscale.i64()
+; CHECK-NEXT:    [[TMP14:%.*]] = shl nuw i64 [[TMP11]], 2
+; CHECK-NEXT:    [[TMP15:%.*]] = sub i64 [[TMP14]], 1
+; CHECK-NEXT:    [[N_RND_UP:%.*]] = add i64 [[N1]], [[TMP15]]
+; CHECK-NEXT:    [[N_MOD_VF:%.*]] = urem i64 [[N_RND_UP]], [[TMP14]]
+; CHECK-NEXT:    [[N_VEC:%.*]] = sub i64 [[N_RND_UP]], [[N_MOD_VF]]
+; CHECK-NEXT:    [[DOTCAST:%.*]] = trunc i64 [[N_VEC]] to i32
+; CHECK-NEXT:    [[TMP18:%.*]] = mul i32 [[DOTCAST]], 2
 ; CHECK-NEXT:    [[TMP4:%.*]] = call <vscale x 4 x i32> @llvm.stepvector.nxv4i32()
 ; CHECK-NEXT:    [[TMP5:%.*]] = mul <vscale x 4 x i32> [[TMP4]], splat (i32 2)
 ; CHECK-NEXT:    br label [[VECTOR_BODY:%.*]]
@@ -35,7 +43,6 @@ define i32 @foo(i32 %TC, ptr %a, ptr %b) {
 ; CHECK-NEXT:    [[TMP9:%.*]] = add <vscale x 4 x i32> [[VEC_IND]], [[VP_OP_LOAD]]
 ; CHECK-NEXT:    [[TMP10:%.*]] = getelementptr inbounds i32, ptr [[B]], i64 [[EVL_BASED_IV]]
 ; CHECK-NEXT:    call void @llvm.vp.store.nxv4i32.p0(<vscale x 4 x i32> [[TMP9]], ptr align 4 [[TMP10]], <vscale x 4 x i1> splat (i1 true), i32 [[TMP6]]), !tbaa [[TBAA0]]
-; CHECK-NEXT:    [[TMP11:%.*]] = add <vscale x 4 x i32> [[VEC_IND]], splat (i32 2)
 ; CHECK-NEXT:    [[TMP12:%.*]] = zext i32 [[TMP6]] to i64
 ; CHECK-NEXT:    [[INDEX_EVL_NEXT]] = add nuw i64 [[TMP12]], [[EVL_BASED_IV]]
 ; CHECK-NEXT:    [[AVL_NEXT]] = sub nuw i64 [[AVL]], [[TMP12]]
@@ -43,11 +50,6 @@ define i32 @foo(i32 %TC, ptr %a, ptr %b) {
 ; CHECK-NEXT:    [[TMP13:%.*]] = icmp eq i64 [[AVL_NEXT]], 0
 ; CHECK-NEXT:    br i1 [[TMP13]], label [[MIDDLE_BLOCK:%.*]], label [[VECTOR_BODY]], !llvm.loop [[LOOP4:![0-9]+]]
 ; CHECK:       middle.block:
-; CHECK-NEXT:    [[TMP14:%.*]] = sub i64 [[TMP12]], 1
-; CHECK-NEXT:    [[TMP15:%.*]] = call i64 @llvm.vscale.i64()
-; CHECK-NEXT:    [[TMP16:%.*]] = mul nuw i64 [[TMP15]], 4
-; CHECK-NEXT:    [[TMP17:%.*]] = mul i64 [[TMP16]], 0
-; CHECK-NEXT:    [[TMP18:%.*]] = extractelement <vscale x 4 x i32> [[TMP11]], i64 [[TMP14]]
 ; CHECK-NEXT:    br label [[LOOP_EXIT:%.*]]
 ; CHECK:       scalar.ph:
 ; CHECK-NEXT:    br label [[LOOP:%.*]]
