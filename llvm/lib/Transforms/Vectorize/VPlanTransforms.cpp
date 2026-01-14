@@ -1634,9 +1634,8 @@ static void narrowToSingleScalarRecipes(VPlan &Plan) {
           // If the mask is the header mask, this mask contains at least one
           // active lane. So it is safe to convert the scatter to a scalar
           // store.
-          assert(vputils::isHeaderMask(Mask, Plan) &&
-                 "Mask must be header mask.");
-          auto *Idx = new VPInstruction(VPInstruction::LastActiveLane, Mask);
+          VPInstruction *Idx =
+              new VPInstruction(VPInstruction::LastActiveLane, Mask);
           Idx->insertBefore(WidenStoreR);
           Extract = new VPInstruction(VPInstruction::ExtractLane,
                                       {Idx, WidenStoreR->getOperand(1)});
