@@ -916,7 +916,7 @@ define void @test_widen_exp_v2(ptr noalias %p2, ptr noalias %p, i64 %n) #5 {
 ; TFALWAYS-NEXT:  [[ENTRY:.*]]:
 ; TFALWAYS-NEXT:    [[TMP0:%.*]] = add i64 [[N]], 1
 ; TFALWAYS-NEXT:    [[TMP1:%.*]] = call i64 @llvm.vscale.i64()
-; TFALWAYS-NEXT:    [[TMP2:%.*]] = mul nuw i64 [[TMP1]], 2
+; TFALWAYS-NEXT:    [[TMP2:%.*]] = shl nuw i64 [[TMP1]], 1
 ; TFALWAYS-NEXT:    [[TMP3:%.*]] = call i64 @llvm.vscale.i64()
 ; TFALWAYS-NEXT:    [[TMP4:%.*]] = shl nuw i64 [[TMP3]], 1
 ; TFALWAYS-NEXT:    [[TMP5:%.*]] = sub i64 [[TMP0]], [[TMP4]]
@@ -951,7 +951,7 @@ define void @test_widen_exp_v2(ptr noalias %p2, ptr noalias %p, i64 %n) #5 {
 ; TFFALLBACK-NEXT:  [[ENTRY:.*]]:
 ; TFFALLBACK-NEXT:    [[TMP0:%.*]] = add i64 [[N]], 1
 ; TFFALLBACK-NEXT:    [[TMP1:%.*]] = call i64 @llvm.vscale.i64()
-; TFFALLBACK-NEXT:    [[TMP2:%.*]] = mul nuw i64 [[TMP1]], 2
+; TFFALLBACK-NEXT:    [[TMP2:%.*]] = shl nuw i64 [[TMP1]], 1
 ; TFFALLBACK-NEXT:    [[TMP3:%.*]] = call i64 @llvm.vscale.i64()
 ; TFFALLBACK-NEXT:    [[TMP4:%.*]] = shl nuw i64 [[TMP3]], 1
 ; TFFALLBACK-NEXT:    [[TMP5:%.*]] = sub i64 [[TMP0]], [[TMP4]]
@@ -986,7 +986,7 @@ define void @test_widen_exp_v2(ptr noalias %p2, ptr noalias %p, i64 %n) #5 {
 ; TFA_INTERLEAVE-NEXT:  [[ENTRY:.*]]:
 ; TFA_INTERLEAVE-NEXT:    [[TMP0:%.*]] = add i64 [[N]], 1
 ; TFA_INTERLEAVE-NEXT:    [[TMP5:%.*]] = call i64 @llvm.vscale.i64()
-; TFA_INTERLEAVE-NEXT:    [[TMP6:%.*]] = mul nuw i64 [[TMP5]], 4
+; TFA_INTERLEAVE-NEXT:    [[TMP6:%.*]] = shl nuw i64 [[TMP5]], 2
 ; TFA_INTERLEAVE-NEXT:    [[TMP7:%.*]] = call i64 @llvm.vscale.i64()
 ; TFA_INTERLEAVE-NEXT:    [[TMP10:%.*]] = shl nuw i64 [[TMP7]], 2
 ; TFA_INTERLEAVE-NEXT:    [[TMP1:%.*]] = sub i64 [[TMP0]], [[TMP10]]
