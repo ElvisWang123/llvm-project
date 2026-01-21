@@ -6824,18 +6824,30 @@ void LoopVectorizationPlanner::buildVPlans(ElementCount MinVF,
     if (!Plan)
       continue;
 
+    // Add the start VF to prevent optimizations on plan with scalar VF.
+    Plan->addVF(SubRange.Start);
+    Plan->setName("Initial VPlan");
+
     // Now optimize the initial VPlan.
     RUN_VPLAN_PASS(VPlanTransforms::hoistPredicatedLoads, *Plan, PSE, OrigLoop);
     RUN_VPLAN_PASS(VPlanTransforms::sinkPredicatedStores, *Plan, PSE, OrigLoop);
     RUN_VPLAN_PASS(VPlanTransforms::truncateToMinimalBitwidths, *Plan,
                    Config.getMinimalBitwidths());
     RUN_VPLAN_PASS(VPlanTransforms::optimize, *Plan);
+    // TODO: Try to put narrowScatters in VPlanTransforms::optimize
+    VPCostContext CostCtx(CM.TTI, *CM.TLI, *Plan, CM, Config.CostKind, CM.PSE,
+                          OrigLoop);
+    RUN_VPLAN_PASS(VPlanTransforms::narrowScatters, *Plan, CostCtx, SubRange,
+                   CM.foldTailWithEVL());
     // TODO: try to put addExplicitVectorLength close to addActiveLaneMask
     if (CM.foldTailWithEVL()) {
       RUN_VPLAN_PASS(VPlanTransforms::addExplicitVectorLength, *Plan,
                      Config.getMaxSafeElements());
       RUN_VPLAN_PASS(VPlanTransforms::optimizeEVLMasks, *Plan);
     }
+
+    for (ElementCount VF : drop_begin(SubRange))
+      Plan->addVF(VF);
 
     if (auto P = VPlanTransforms::narrowInterleaveGroups(*Plan, TTI))
       VPlans.push_back(std::move(P));
@@ -7055,10 +7067,6 @@ VPlanPtr LoopVectorizationPlanner::tryToBuildVPlan(VPlanPtr Plan,
   // Ensure scalar VF plans only contain VF=1, as required by hasScalarVFOnly.
   if (Range.Start.isScalar())
     Range.End = Range.Start * 2;
-
-  for (ElementCount VF : Range)
-    Plan->addVF(VF);
-  Plan->setName("Initial VPlan");
 
   // Interleave memory: for each Interleave Group we marked earlier as relevant
   // for this VPlan, replace the Recipes widening its memory instructions with a

@@ -14,8 +14,8 @@ define void @truncate_to_minimal_bitwidths_widen_cast_recipe(ptr %src) {
 ; CHECK-NEXT:    br label %[[VECTOR_BODY:.*]]
 ; CHECK:       [[VECTOR_BODY]]:
 ; CHECK-NEXT:    [[AVL:%.*]] = phi i64 [ 9, %[[VECTOR_PH]] ], [ [[AVL_NEXT:%.*]], %[[VECTOR_BODY]] ]
-; CHECK-NEXT:    [[TMP7:%.*]] = call i32 @llvm.experimental.get.vector.length.i64(i64 [[AVL]], i32 8, i1 true)
-; CHECK-NEXT:    call void @llvm.vp.scatter.nxv8i8.nxv8p0(<vscale x 8 x i8> zeroinitializer, <vscale x 8 x ptr> align 1 splat (ptr null), <vscale x 8 x i1> splat (i1 true), i32 [[TMP7]])
+; CHECK-NEXT:    [[TMP7:%.*]] = call i32 @llvm.experimental.get.vector.length.i64(i64 [[AVL]], i32 1, i1 true)
+; CHECK-NEXT:    call void @llvm.vp.scatter.nxv1i8.nxv1p0(<vscale x 1 x i8> zeroinitializer, <vscale x 1 x ptr> align 1 splat (ptr null), <vscale x 1 x i1> splat (i1 true), i32 [[TMP7]])
 ; CHECK-NEXT:    [[TMP1:%.*]] = zext i32 [[TMP7]] to i64
 ; CHECK-NEXT:    [[AVL_NEXT]] = sub nuw i64 [[AVL]], [[TMP1]]
 ; CHECK-NEXT:    [[TMP2:%.*]] = icmp eq i64 [[AVL_NEXT]], 0

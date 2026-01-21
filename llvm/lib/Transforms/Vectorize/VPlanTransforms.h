@@ -532,6 +532,11 @@ struct VPlanTransforms {
   /// made by the legacy CM. Only transforms "usesFirstLaneOnly` def-use chains
   /// enabled by prior widening of consecutive memory operations for now.
   static void makeScalarizationDecisions(VPlan &Plan, VFRange &Range);
+
+  /// Convert the scatter to extract-last-active-lane + scalar store if
+  /// profitable.
+  static void narrowScatters(VPlan &Plan, VPCostContext &Ctx, VFRange &Range,
+                             const bool &FoldTailWithEVL);
 };
 
 } // namespace llvm
