@@ -1375,9 +1375,12 @@ static void simplifyRecipe(VPSingleDefRecipe *Def, VPTypeAnalysis &TypeInfo) {
 
   // x && (x && y) -> x && y
   if (match(Def, m_LogicalAnd(m_VPValue(X),
-                              m_c_LogicalAnd(m_Deferred(X), m_VPValue(Y)))))
-    return Def->replaceAllUsesWith(
-        Def->getOperand(Def->getOperand(0) == X ? 1 : 0));
+                              m_c_LogicalAnd(m_Deferred(X), m_VPValue(Y))))) {
+    // For x && (y && x), we need to simplify it to x && y.
+    if (cast<VPInstruction>(Def->getOperand(1))->getOperand(0) != X)
+      return Def->replaceAllUsesWith(Builder.createLogicalAnd(X, Y));
+    return Def->replaceAllUsesWith(Def->getOperand(1));
+  }
 
   // x && !x -> 0
   if (match(Def, m_LogicalAnd(m_VPValue(X), m_Not(m_Deferred(X)))))
