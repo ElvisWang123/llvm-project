@@ -1376,7 +1376,8 @@ static void simplifyRecipe(VPSingleDefRecipe *Def, VPTypeAnalysis &TypeInfo) {
   // x && (x && y) -> x && y
   if (match(Def, m_LogicalAnd(m_VPValue(X),
                               m_c_LogicalAnd(m_Deferred(X), m_VPValue(Y)))))
-    return Def->replaceAllUsesWith(Def->getOperand(1));
+    return Def->replaceAllUsesWith(
+        Def->getOperand(Def->getOperand(0) == X ? 1 : 0));
 
   // x && !x -> 0
   if (match(Def, m_LogicalAnd(m_VPValue(X), m_Not(m_Deferred(X)))))
