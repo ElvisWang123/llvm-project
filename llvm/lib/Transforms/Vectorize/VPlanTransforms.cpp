@@ -3154,7 +3154,7 @@ void VPlanTransforms::optimizeEVLMasks(VPlan &Plan) {
     }
   }
 
-  // Remove remaining LogicalAnd(HeaderMask, Mask) to vp.merge (True, Mask,
+  // Replace remaining (HeaderMask && Mask) with vp.merge (True, Mask,
   // False, EVL)
   for (VPUser *U : collectUsersRecursively(HeaderMask)) {
     VPValue *Mask;
