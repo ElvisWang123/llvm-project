@@ -7143,9 +7143,8 @@ static bool planContainsAdditionalSimplifications(VPlan &Plan,
 
       // The legacy cost model won't calculate the cost of the LogicalAnd which
       // will be replaced with vp_merge.
-      if (auto *IntrinsicR = dyn_cast<VPWidenIntrinsicRecipe>(&R))
-        if (IntrinsicR->getVectorIntrinsicID() == Intrinsic::vp_merge)
-          return true;
+      if (match(&R, m_Intrinsic<Intrinsic::vp_merge>()))
+        return true;
 
       /// If a VPlan transform folded a recipe to one producing a single-scalar,
       /// but the original instruction wasn't uniform-after-vectorization in the
