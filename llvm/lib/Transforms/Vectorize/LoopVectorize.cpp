@@ -7961,6 +7961,10 @@ VPRecipeBuilder::tryToCreateWidenNonPhiRecipe(VPSingleDefRecipe *R,
   return tryToWiden(VPI);
 }
 
+// To allow RUN_VPLAN_PASS to print the VPlan after VF/UF independent
+// optimizations.
+static void printOptimizedVPlan(VPlan &) {}
+
 void LoopVectorizationPlanner::buildVPlansWithVPRecipes(ElementCount MinVF,
                                                         ElementCount MaxVF) {
   if (ElementCount::isKnownGT(MinVF, MaxVF))
@@ -8033,6 +8037,7 @@ void LoopVectorizationPlanner::buildVPlansWithVPRecipes(ElementCount MinVF,
       if (auto P = VPlanTransforms::narrowInterleaveGroups(*Plan, TTI))
         VPlans.push_back(std::move(P));
 
+      RUN_VPLAN_PASS_NO_VERIFY(printOptimizedVPlan, *Plan);
       assert(verifyVPlanIsValid(*Plan) && "VPlan is invalid");
       VPlans.push_back(std::move(Plan));
     }
