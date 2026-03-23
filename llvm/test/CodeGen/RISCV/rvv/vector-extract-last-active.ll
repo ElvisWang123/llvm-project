@@ -409,3 +409,45 @@ define double @extract_last_double_scalable(<vscale x 2 x double> %data, <vscale
   ret double %res
 }
 
+define i8 @extract_last_i8_scalable_vscale(<vscale x 16 x i8> %data, <vscale x 16 x i1> %mask, i8 %passthru) vscale_range(4,1024) {
+; RV32-LABEL: extract_last_i8_scalable_vscale:
+; RV32:       # %bb.0:
+; RV32-NEXT:    vsetvli a1, zero, e8, m2, ta, ma
+; RV32-NEXT:    vcpop.m a1, v0
+; RV32-NEXT:    beqz a1, .LBB12_2
+; RV32-NEXT:  # %bb.1:
+; RV32-NEXT:    vsetvli zero, zero, e16, m4, ta, mu
+; RV32-NEXT:    vmv.v.i v12, 0
+; RV32-NEXT:    vid.v v12, v0.t
+; RV32-NEXT:    vredmaxu.vs v10, v12, v12
+; RV32-NEXT:    vmv.x.s a0, v10
+; RV32-NEXT:    slli a0, a0, 16
+; RV32-NEXT:    srli a0, a0, 16
+; RV32-NEXT:    vsetvli zero, zero, e8, m2, ta, ma
+; RV32-NEXT:    vslidedown.vx v8, v8, a0
+; RV32-NEXT:    vmv.x.s a0, v8
+; RV32-NEXT:  .LBB12_2:
+; RV32-NEXT:    ret
+;
+; RV64-LABEL: extract_last_i8_scalable_vscale:
+; RV64:       # %bb.0:
+; RV64-NEXT:    vsetvli a1, zero, e8, m2, ta, ma
+; RV64-NEXT:    vcpop.m a1, v0
+; RV64-NEXT:    beqz a1, .LBB12_2
+; RV64-NEXT:  # %bb.1:
+; RV64-NEXT:    vsetvli zero, zero, e16, m4, ta, mu
+; RV64-NEXT:    vmv.v.i v12, 0
+; RV64-NEXT:    vid.v v12, v0.t
+; RV64-NEXT:    vredmaxu.vs v10, v12, v12
+; RV64-NEXT:    vmv.x.s a0, v10
+; RV64-NEXT:    slli a0, a0, 48
+; RV64-NEXT:    srli a0, a0, 48
+; RV64-NEXT:    vsetvli zero, zero, e8, m2, ta, ma
+; RV64-NEXT:    vslidedown.vx v8, v8, a0
+; RV64-NEXT:    vmv.x.s a0, v8
+; RV64-NEXT:  .LBB12_2:
+; RV64-NEXT:    ret
+  %res = call i8 @llvm.experimental.vector.extract.last.active.nxv16i8(<vscale x 16 x i8> %data, <vscale x 16 x i1> %mask, i8 %passthru)
+  ret i8 %res
+}
+
