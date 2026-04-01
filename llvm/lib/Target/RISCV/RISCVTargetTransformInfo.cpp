@@ -1739,7 +1739,7 @@ RISCVTTIImpl::getIntrinsicInstrCost(const IntrinsicCostAttributes &ICA,
         /*ZeroIsPoison=*/true, &VScaleRange);
     EltWidth = std::max(EltWidth, MaskTy->getScalarSizeInBits());
 
-    // Currently expandVectorFindLastActive cannot hanle step vector split.
+    // Currently expandVectorFindLastActive cannot handle step vector split.
     // So return invalid when the lmul exceed 8 which needs to split.
     // FIXME: Remove this if expandVectorFindLastActive supports split vector.
     unsigned VF = MaskTy->getElementCount().getKnownMinValue();
