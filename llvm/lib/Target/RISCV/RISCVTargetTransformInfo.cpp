@@ -1733,9 +1733,7 @@ RISCVTTIImpl::getIntrinsicInstrCost(const IntrinsicCostAttributes &ICA,
     // Find a suitable type for a stepvector.
     ConstantRange VScaleRange(APInt(64, 1), APInt::getZero(64));
     unsigned EltWidth = getTLI()->getBitWidthForCttzElements(
-        EVT(TLI->getVectorIdxTy(getDataLayout()))
-            .getTypeForEVT(MaskTy->getContext()),
-        MaskTy->getElementCount(),
+        TLI->getVectorIdxTy(getDataLayout()), MaskTy->getElementCount(),
         /*ZeroIsPoison=*/true, &VScaleRange);
     EltWidth = std::max(EltWidth, MaskTy->getScalarSizeInBits());
     Type *StepTy = Type::getIntNTy(MaskTy->getContext(), EltWidth);
