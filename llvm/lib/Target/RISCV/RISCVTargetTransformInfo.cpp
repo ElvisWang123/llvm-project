@@ -1741,7 +1741,7 @@ RISCVTTIImpl::getIntrinsicInstrCost(const IntrinsicCostAttributes &ICA,
     auto StepLT = getTypeLegalizationCost(StepVecTy);
 
     // Currently expandVectorFindLastActive cannot handle step vector split.
-    // So return invalid when the lmul exceed 8 which needs to split.
+    // So return invalid when the type needs split.
     // FIXME: Remove this if expandVectorFindLastActive supports split vector.
     if (StepLT.first > 1)
       return InstructionCost::getInvalid();
