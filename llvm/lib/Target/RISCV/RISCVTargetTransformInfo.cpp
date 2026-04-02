@@ -1738,17 +1738,16 @@ RISCVTTIImpl::getIntrinsicInstrCost(const IntrinsicCostAttributes &ICA,
         MaskTy->getElementCount(),
         /*ZeroIsPoison=*/true, &VScaleRange);
     EltWidth = std::max(EltWidth, MaskTy->getScalarSizeInBits());
+    Type *StepTy = Type::getIntNTy(MaskTy->getContext(), EltWidth);
+    auto *StepVecTy = VectorType::get(StepTy, ValTy->getElementCount());
+    auto StepLT = getTypeLegalizationCost(StepVecTy);
 
     // Currently expandVectorFindLastActive cannot handle step vector split.
     // So return invalid when the lmul exceed 8 which needs to split.
     // FIXME: Remove this if expandVectorFindLastActive supports split vector.
-    unsigned VF = MaskTy->getElementCount().getKnownMinValue();
-    if ((VF * EltWidth / RISCV::RVVBitsPerBlock) > 8)
+    if (StepLT.first > 1)
       return InstructionCost::getInvalid();
 
-    Type *StepTy = Type::getIntNTy(MaskTy->getContext(), EltWidth);
-    auto *StepVecTy = VectorType::get(StepTy, ValTy->getElementCount());
-    auto StepLT = getTypeLegalizationCost(StepVecTy);
     InstructionCost Cost = 0;
     unsigned Opcodes[] = {RISCV::VID_V, RISCV::VREDMAXU_VS, RISCV::VMV_X_S};
 
