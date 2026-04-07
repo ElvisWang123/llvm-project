@@ -330,12 +330,12 @@ define i16 @select_decreasing_induction_icmp_table_i16(i16 noundef %val) {
 ; IC4VF4-NEXT:    [[TMP77:%.*]] = select <4 x i1> [[TMP101]], <4 x i16> <i16 7, i16 6, i16 5, i16 4>, <4 x i16> splat (i16 32767)
 ; IC4VF4-NEXT:    [[TMP70:%.*]] = select <4 x i1> [[TMP102]], <4 x i16> <i16 3, i16 2, i16 1, i16 0>, <4 x i16> splat (i16 32767)
 ; IC4VF4-NEXT:    [[TMP71:%.*]] = select <4 x i1> [[TMP103]], <4 x i16> <i16 -1, i16 -2, i16 -3, i16 -4>, <4 x i16> splat (i16 32767)
-; IC4VF4-NEXT:    br label %[[MIDDLE_BLOCK:.*]]
-; IC4VF4:       [[MIDDLE_BLOCK]]:
 ; IC4VF4-NEXT:    [[TMP112:%.*]] = select <4 x i1> splat (i1 true), <4 x i16> [[TMP76]], <4 x i16> splat (i16 32767)
 ; IC4VF4-NEXT:    [[TMP113:%.*]] = select <4 x i1> splat (i1 true), <4 x i16> [[TMP77]], <4 x i16> splat (i16 32767)
 ; IC4VF4-NEXT:    [[TMP114:%.*]] = select <4 x i1> splat (i1 true), <4 x i16> [[TMP70]], <4 x i16> splat (i16 32767)
 ; IC4VF4-NEXT:    [[TMP115:%.*]] = select <4 x i1> zeroinitializer, <4 x i16> [[TMP71]], <4 x i16> splat (i16 32767)
+; IC4VF4-NEXT:    br label %[[MIDDLE_BLOCK:.*]]
+; IC4VF4:       [[MIDDLE_BLOCK]]:
 ; IC4VF4-NEXT:    [[RDX_MINMAX:%.*]] = call <4 x i16> @llvm.smin.v4i16(<4 x i16> [[TMP112]], <4 x i16> [[TMP113]])
 ; IC4VF4-NEXT:    [[RDX_MINMAX45:%.*]] = call <4 x i16> @llvm.smin.v4i16(<4 x i16> [[RDX_MINMAX]], <4 x i16> [[TMP114]])
 ; IC4VF4-NEXT:    [[RDX_MINMAX46:%.*]] = call <4 x i16> @llvm.smin.v4i16(<4 x i16> [[RDX_MINMAX45]], <4 x i16> [[TMP115]])
@@ -596,12 +596,12 @@ define i16 @select_decreasing_induction_icmp_table_half(half noundef %val) {
 ; IC4VF4-NEXT:    [[TMP77:%.*]] = select <4 x i1> [[TMP101]], <4 x i16> <i16 7, i16 6, i16 5, i16 4>, <4 x i16> splat (i16 32767)
 ; IC4VF4-NEXT:    [[TMP70:%.*]] = select <4 x i1> [[TMP102]], <4 x i16> <i16 3, i16 2, i16 1, i16 0>, <4 x i16> splat (i16 32767)
 ; IC4VF4-NEXT:    [[TMP71:%.*]] = select <4 x i1> [[TMP103]], <4 x i16> <i16 -1, i16 -2, i16 -3, i16 -4>, <4 x i16> splat (i16 32767)
-; IC4VF4-NEXT:    br label %[[MIDDLE_BLOCK:.*]]
-; IC4VF4:       [[MIDDLE_BLOCK]]:
 ; IC4VF4-NEXT:    [[TMP112:%.*]] = select <4 x i1> splat (i1 true), <4 x i16> [[TMP76]], <4 x i16> splat (i16 32767)
 ; IC4VF4-NEXT:    [[TMP113:%.*]] = select <4 x i1> splat (i1 true), <4 x i16> [[TMP77]], <4 x i16> splat (i16 32767)
 ; IC4VF4-NEXT:    [[TMP114:%.*]] = select <4 x i1> splat (i1 true), <4 x i16> [[TMP70]], <4 x i16> splat (i16 32767)
 ; IC4VF4-NEXT:    [[TMP115:%.*]] = select <4 x i1> zeroinitializer, <4 x i16> [[TMP71]], <4 x i16> splat (i16 32767)
+; IC4VF4-NEXT:    br label %[[MIDDLE_BLOCK:.*]]
+; IC4VF4:       [[MIDDLE_BLOCK]]:
 ; IC4VF4-NEXT:    [[RDX_MINMAX:%.*]] = call <4 x i16> @llvm.smin.v4i16(<4 x i16> [[TMP112]], <4 x i16> [[TMP113]])
 ; IC4VF4-NEXT:    [[RDX_MINMAX45:%.*]] = call <4 x i16> @llvm.smin.v4i16(<4 x i16> [[RDX_MINMAX]], <4 x i16> [[TMP114]])
 ; IC4VF4-NEXT:    [[RDX_MINMAX46:%.*]] = call <4 x i16> @llvm.smin.v4i16(<4 x i16> [[RDX_MINMAX45]], <4 x i16> [[TMP115]])

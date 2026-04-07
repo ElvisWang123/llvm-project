@@ -5854,7 +5854,7 @@ void VPlanTransforms::optimizeFindIVReductions(VPlan &Plan,
 
     auto *NewPhiR = new VPReductionPHIRecipe(
         cast<PHINode>(PhiR->getUnderlyingInstr()), RecurKind::FindIV, *StartVPV,
-        *FindLastSelect, RdxUnordered{1}, {},
+        *BackedgeVal, RdxUnordered{1}, {},
         PhiR->hasUsesOutsideReductionChain());
     NewPhiR->insertBefore(PhiR);
     PhiR->replaceAllUsesWith(NewPhiR);
