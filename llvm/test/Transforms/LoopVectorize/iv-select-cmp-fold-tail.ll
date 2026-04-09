@@ -157,9 +157,11 @@ define i64 @select_decreasing_induction_icmp_non_const_start(ptr %a, ptr %b, i64
 ; CHECK-NEXT:    [[TMP51:%.*]] = icmp eq i64 [[INDEX_NEXT]], [[N_VEC]]
 ; CHECK-NEXT:    br i1 [[TMP51]], label %[[MIDDLE_BLOCK:.*]], label %[[VECTOR_BODY]], !llvm.loop [[LOOP3:![0-9]+]]
 ; CHECK:       [[MIDDLE_BLOCK]]:
-; CHECK-NEXT:    [[TMP53:%.*]] = call i64 @llvm.vector.reduce.smin.v4i64(<4 x i64> [[TMP49]])
+; CHECK-NEXT:    [[TMP52:%.*]] = select <4 x i1> [[TMP2]], <4 x i64> [[TMP49]], <4 x i64> [[VEC_PHI]]
+; CHECK-NEXT:    [[TMP53:%.*]] = call i64 @llvm.vector.reduce.smin.v4i64(<4 x i64> [[TMP52]])
 ; CHECK-NEXT:    [[TMP54:%.*]] = add nsw i64 [[TMP53]], -1
-; CHECK-NEXT:    [[TMP56:%.*]] = call i1 @llvm.vector.reduce.or.v4i1(<4 x i1> [[TMP50]])
+; CHECK-NEXT:    [[TMP55:%.*]] = select <4 x i1> [[TMP2]], <4 x i1> [[TMP50]], <4 x i1> [[VEC_PHI3]]
+; CHECK-NEXT:    [[TMP56:%.*]] = call i1 @llvm.vector.reduce.or.v4i1(<4 x i1> [[TMP55]])
 ; CHECK-NEXT:    [[TMP57:%.*]] = freeze i1 [[TMP56]]
 ; CHECK-NEXT:    [[RDX_SELECT:%.*]] = select i1 [[TMP57]], i64 [[TMP54]], i64 [[RDX_START]]
 ; CHECK-NEXT:    br label %[[EXIT:.*]]

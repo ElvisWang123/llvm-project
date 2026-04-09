@@ -5799,6 +5799,8 @@ void VPlanTransforms::optimizeFindIVReductions(VPlan &Plan,
     // select.
     VPValue *BackedgeVal = PhiR->getBackedgeValue();
     auto *FindLastSelect = cast<VPSingleDefRecipe>(BackedgeVal);
+    auto *PredSelect =
+        HeaderMask ? cast<VPSingleDefRecipe>(BackedgeVal) : nullptr;
     if (HeaderMask &&
         !match(BackedgeVal,
                m_Select(m_Specific(HeaderMask),
@@ -5900,6 +5902,10 @@ void VPlanTransforms::optimizeFindIVReductions(VPlan &Plan,
       }
     }
 
+    // Update the predicated select with FindLastSelect when folding tail.
+    if (HeaderMask)
+      PredSelect->setOperand(1, FindLastSelect);
+
     // Create the reduction result in the middle block using sentinel directly.
     RecurKind MinMaxKind =
         UseMax ? (UseSigned ? RecurKind::SMax : RecurKind::UMax)
@@ -5909,7 +5915,8 @@ void VPlanTransforms::optimizeFindIVReductions(VPlan &Plan,
     DebugLoc ExitDL = RdxResult->getDebugLoc();
     VPBuilder MiddleBuilder(RdxResult);
     VPValue *ReducedIV = MiddleBuilder.createNaryOp(
-        VPInstruction::ComputeReductionResult, FindLastSelect, Flags, ExitDL);
+        VPInstruction::ComputeReductionResult,
+        HeaderMask ? PredSelect : FindLastSelect, Flags, ExitDL);
 
     // If IVOfExpressionToSink is an expression to sink, sink it now.
     VPValue *VectorRegionExitingVal = ReducedIV;
@@ -5949,6 +5956,10 @@ void VPlanTransforms::optimizeFindIVReductions(VPlan &Plan,
                         /*IsInLoop=*/false, FastMathFlags());
       auto *OrReduce = MiddleBuilder.createNaryOp(
           VPInstruction::ComputeReductionResult, {OrVal}, OrFlags, ExitDL);
+      // Add predicated select to prevent poison value when folding tail.
+      if (HeaderMask)
+        OrVal = MiddleBuilder.createSelect(HeaderMask, OrVal, AnyOfPhi, ExitDL);
+
       NewRdxResult = MiddleBuilder.createNaryOp(
           VPInstruction::ComputeAnyOfResult,
           {StartVPV, VectorRegionExitingVal, OrReduce}, {}, ExitDL);
