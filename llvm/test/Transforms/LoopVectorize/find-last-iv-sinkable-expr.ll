@@ -1219,8 +1219,9 @@ define i64 @findlast_expr_flipped_select_anyof(ptr %a, ptr %b, i64 %rdx.start, i
 ; TF-NEXT:    [[TMP16:%.*]] = icmp sgt <4 x i64> [[REVERSE6]], [[REVERSE9]]
 ; TF-NEXT:    [[TMP8:%.*]] = select <4 x i1> [[TMP2]], <4 x i1> [[TMP16]], <4 x i1> zeroinitializer
 ; TF-NEXT:    [[TMP9]] = select <4 x i1> [[TMP8]], <4 x i64> [[VEC_IND]], <4 x i64> [[VEC_PHI]]
-; TF-NEXT:    [[TMP17:%.*]] = xor <4 x i1> [[TMP8]], splat (i1 true)
-; TF-NEXT:    [[TMP10]] = or <4 x i1> [[VEC_PHI3]], [[TMP17]]
+; TF-NEXT:    [[TMP17:%.*]] = xor <4 x i1> [[TMP16]], splat (i1 true)
+; TF-NEXT:    [[TMP18:%.*]] = select <4 x i1> [[TMP2]], <4 x i1> [[TMP17]], <4 x i1> zeroinitializer
+; TF-NEXT:    [[TMP10]] = or <4 x i1> [[VEC_PHI3]], [[TMP18]]
 ; TF-NEXT:    [[INDEX_NEXT]] = add i64 [[INDEX]], 4
 ; TF-NEXT:    [[VEC_IND_NEXT]] = add nsw <4 x i64> [[VEC_PHI]], splat (i64 -4)
 ; TF-NEXT:    [[TMP11:%.*]] = icmp eq i64 [[INDEX_NEXT]], [[N_VEC]]

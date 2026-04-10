@@ -5880,9 +5880,10 @@ void VPlanTransforms::optimizeFindIVReductions(VPlan &Plan,
 
     // When tail folding, mask the condition with the header mask to prevent
     // propagating poison from inactive lanes in the last vector iteration.
+    VPValue *SelectCond = Cond;
     if (HeaderMask) {
       VPBuilder LoopBuilder(FindLastSelect->getDefiningRecipe());
-      Cond = LoopBuilder.createLogicalAnd(HeaderMask, Cond);
+      SelectCond = LoopBuilder.createLogicalAnd(HeaderMask, Cond);
     }
 
     VPInstruction *RdxResult = cast<VPInstruction>(vputils::findRecipe(
@@ -5896,13 +5897,13 @@ void VPlanTransforms::optimizeFindIVReductions(VPlan &Plan,
       VPBuilder LoopBuilder(OrigFindLastSelectR);
       DebugLoc DL = OrigFindLastSelectR->getDebugLoc();
       if (OrigFindLastSelectR->getOperand(1) == PhiR) {
-        FindLastSelect =
-            LoopBuilder.createSelect(Cond, PhiR, IVOfExpressionToSink, DL);
+        FindLastSelect = LoopBuilder.createSelect(SelectCond, PhiR,
+                                                  IVOfExpressionToSink, DL);
       } else {
         assert(OrigFindLastSelectR->getOperand(2) == PhiR &&
                "PhiR expected as operand 1 or 2");
-        FindLastSelect =
-            LoopBuilder.createSelect(Cond, IVOfExpressionToSink, PhiR, DL);
+        FindLastSelect = LoopBuilder.createSelect(
+            SelectCond, IVOfExpressionToSink, PhiR, DL);
       }
     }
 
@@ -5948,6 +5949,10 @@ void VPlanTransforms::optimizeFindIVReductions(VPlan &Plan,
       VPValue *AnyOfCond = Cond;
       if (FindLastSelect->getOperand(1) == PhiR)
         AnyOfCond = LoopBuilder.createNot(Cond);
+      // When tail folding, mask the condition with the header mask to prevent
+      // propagating poison from inactive lanes in the last vector iteration.
+      if (HeaderMask)
+        AnyOfCond = LoopBuilder.createLogicalAnd(HeaderMask, AnyOfCond);
       VPValue *OrVal = LoopBuilder.createOr(AnyOfPhi, AnyOfCond);
       AnyOfPhi->setOperand(1, OrVal);
 
