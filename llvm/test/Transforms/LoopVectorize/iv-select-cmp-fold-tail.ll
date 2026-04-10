@@ -152,7 +152,7 @@ define i64 @select_decreasing_induction_icmp_non_const_start(ptr %a, ptr %b, i64
 ; CHECK-NEXT:    [[TMP48:%.*]] = icmp sgt <4 x i64> [[TMP46]], [[TMP47]]
 ; CHECK-NEXT:    [[TMP49:%.*]] = select <4 x i1> [[TMP2]], <4 x i1> [[TMP48]], <4 x i1> zeroinitializer
 ; CHECK-NEXT:    [[TMP52]] = select <4 x i1> [[TMP49]], <4 x i64> [[VEC_IND]], <4 x i64> [[VEC_PHI]]
-; CHECK-NEXT:    [[TMP50]] = or <4 x i1> [[VEC_PHI3]], [[TMP48]]
+; CHECK-NEXT:    [[TMP50]] = or <4 x i1> [[VEC_PHI3]], [[TMP49]]
 ; CHECK-NEXT:    [[INDEX_NEXT]] = add i64 [[INDEX]], 4
 ; CHECK-NEXT:    [[VEC_IND_NEXT]] = add nsw <4 x i64> [[VEC_IND]], splat (i64 -4)
 ; CHECK-NEXT:    [[TMP51:%.*]] = icmp eq i64 [[INDEX_NEXT]], [[N_VEC]]
@@ -160,8 +160,7 @@ define i64 @select_decreasing_induction_icmp_non_const_start(ptr %a, ptr %b, i64
 ; CHECK:       [[MIDDLE_BLOCK]]:
 ; CHECK-NEXT:    [[TMP53:%.*]] = call i64 @llvm.vector.reduce.smin.v4i64(<4 x i64> [[TMP52]])
 ; CHECK-NEXT:    [[TMP54:%.*]] = add nsw i64 [[TMP53]], -1
-; CHECK-NEXT:    [[TMP55:%.*]] = select <4 x i1> [[TMP2]], <4 x i1> [[TMP50]], <4 x i1> [[VEC_PHI3]]
-; CHECK-NEXT:    [[TMP56:%.*]] = call i1 @llvm.vector.reduce.or.v4i1(<4 x i1> [[TMP55]])
+; CHECK-NEXT:    [[TMP56:%.*]] = call i1 @llvm.vector.reduce.or.v4i1(<4 x i1> [[TMP50]])
 ; CHECK-NEXT:    [[TMP57:%.*]] = freeze i1 [[TMP56]]
 ; CHECK-NEXT:    [[RDX_SELECT:%.*]] = select i1 [[TMP57]], i64 [[TMP54]], i64 [[RDX_START]]
 ; CHECK-NEXT:    br label %[[EXIT:.*]]

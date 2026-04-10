@@ -5882,9 +5882,7 @@ void VPlanTransforms::optimizeFindIVReductions(VPlan &Plan,
     // propagating poison from inactive lanes in the last vector iteration.
     if (HeaderMask) {
       VPBuilder LoopBuilder(FindLastSelect->getDefiningRecipe());
-      auto *Or = LoopBuilder.createLogicalAnd(HeaderMask,
-                                              FindLastSelect->getOperand(0));
-      FindLastSelect->setOperand(0, Or);
+      Cond = LoopBuilder.createLogicalAnd(HeaderMask, Cond);
     }
 
     VPInstruction *RdxResult = cast<VPInstruction>(vputils::findRecipe(
@@ -5897,15 +5895,14 @@ void VPlanTransforms::optimizeFindIVReductions(VPlan &Plan,
       auto *OrigFindLastSelectR = FindLastSelect->getDefiningRecipe();
       VPBuilder LoopBuilder(OrigFindLastSelectR);
       DebugLoc DL = OrigFindLastSelectR->getDebugLoc();
-      VPValue *SelectCond = OrigFindLastSelectR->getOperand(0);
       if (OrigFindLastSelectR->getOperand(1) == PhiR) {
-        FindLastSelect = LoopBuilder.createSelect(SelectCond, PhiR,
-                                                  IVOfExpressionToSink, DL);
+        FindLastSelect =
+            LoopBuilder.createSelect(Cond, PhiR, IVOfExpressionToSink, DL);
       } else {
         assert(OrigFindLastSelectR->getOperand(2) == PhiR &&
                "PhiR expected as operand 1 or 2");
-        FindLastSelect = LoopBuilder.createSelect(
-            SelectCond, IVOfExpressionToSink, PhiR, DL);
+        FindLastSelect =
+            LoopBuilder.createSelect(Cond, IVOfExpressionToSink, PhiR, DL);
       }
     }
 
@@ -5958,10 +5955,6 @@ void VPlanTransforms::optimizeFindIVReductions(VPlan &Plan,
                         /*IsInLoop=*/false, FastMathFlags());
       auto *OrReduce = MiddleBuilder.createNaryOp(
           VPInstruction::ComputeReductionResult, {OrVal}, OrFlags, ExitDL);
-      // Add predicated select to prevent poison value when folding tail.
-      if (HeaderMask)
-        OrVal = MiddleBuilder.createSelect(HeaderMask, OrVal, AnyOfPhi, ExitDL);
-
       NewRdxResult = MiddleBuilder.createNaryOp(
           VPInstruction::ComputeAnyOfResult,
           {StartVPV, VectorRegionExitingVal, OrReduce}, {}, ExitDL);
