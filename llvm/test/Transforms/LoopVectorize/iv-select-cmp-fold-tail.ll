@@ -82,7 +82,7 @@ define i64 @select_decreasing_induction_icmp_non_const_start(ptr %a, ptr %b, i64
 ; CHECK:       [[VECTOR_BODY]]:
 ; CHECK-NEXT:    [[INDEX:%.*]] = phi i64 [ 0, %[[VECTOR_PH]] ], [ [[INDEX_NEXT:%.*]], %[[PRED_LOAD_CONTINUE11:.*]] ]
 ; CHECK-NEXT:    [[VEC_IND:%.*]] = phi <4 x i64> [ [[INDUCTION]], %[[VECTOR_PH]] ], [ [[VEC_IND_NEXT:%.*]], %[[PRED_LOAD_CONTINUE11]] ]
-; CHECK-NEXT:    [[VEC_PHI:%.*]] = phi <4 x i64> [ splat (i64 9223372036854775807), %[[VECTOR_PH]] ], [ [[TMP49:%.*]], %[[PRED_LOAD_CONTINUE11]] ]
+; CHECK-NEXT:    [[VEC_PHI:%.*]] = phi <4 x i64> [ splat (i64 9223372036854775807), %[[VECTOR_PH]] ], [ [[TMP52:%.*]], %[[PRED_LOAD_CONTINUE11]] ]
 ; CHECK-NEXT:    [[VEC_PHI3:%.*]] = phi <4 x i1> [ zeroinitializer, %[[VECTOR_PH]] ], [ [[TMP50:%.*]], %[[PRED_LOAD_CONTINUE11]] ]
 ; CHECK-NEXT:    [[BROADCAST_SPLATINSERT4:%.*]] = insertelement <4 x i64> poison, i64 [[INDEX]], i64 0
 ; CHECK-NEXT:    [[BROADCAST_SPLAT5:%.*]] = shufflevector <4 x i64> [[BROADCAST_SPLATINSERT4]], <4 x i64> poison, <4 x i32> zeroinitializer
@@ -150,14 +150,14 @@ define i64 @select_decreasing_induction_icmp_non_const_start(ptr %a, ptr %b, i64
 ; CHECK-NEXT:    [[TMP46:%.*]] = phi <4 x i64> [ [[TMP35]], %[[PRED_LOAD_CONTINUE9]] ], [ [[TMP41]], %[[PRED_LOAD_IF10]] ]
 ; CHECK-NEXT:    [[TMP47:%.*]] = phi <4 x i64> [ [[TMP36]], %[[PRED_LOAD_CONTINUE9]] ], [ [[TMP45]], %[[PRED_LOAD_IF10]] ]
 ; CHECK-NEXT:    [[TMP48:%.*]] = icmp sgt <4 x i64> [[TMP46]], [[TMP47]]
-; CHECK-NEXT:    [[TMP49]] = select <4 x i1> [[TMP48]], <4 x i64> [[VEC_IND]], <4 x i64> [[VEC_PHI]]
+; CHECK-NEXT:    [[TMP49:%.*]] = select <4 x i1> [[TMP2]], <4 x i1> [[TMP48]], <4 x i1> zeroinitializer
+; CHECK-NEXT:    [[TMP52]] = select <4 x i1> [[TMP49]], <4 x i64> [[VEC_IND]], <4 x i64> [[VEC_PHI]]
 ; CHECK-NEXT:    [[TMP50]] = or <4 x i1> [[VEC_PHI3]], [[TMP48]]
 ; CHECK-NEXT:    [[INDEX_NEXT]] = add i64 [[INDEX]], 4
 ; CHECK-NEXT:    [[VEC_IND_NEXT]] = add nsw <4 x i64> [[VEC_IND]], splat (i64 -4)
 ; CHECK-NEXT:    [[TMP51:%.*]] = icmp eq i64 [[INDEX_NEXT]], [[N_VEC]]
 ; CHECK-NEXT:    br i1 [[TMP51]], label %[[MIDDLE_BLOCK:.*]], label %[[VECTOR_BODY]], !llvm.loop [[LOOP3:![0-9]+]]
 ; CHECK:       [[MIDDLE_BLOCK]]:
-; CHECK-NEXT:    [[TMP52:%.*]] = select <4 x i1> [[TMP2]], <4 x i64> [[TMP49]], <4 x i64> [[VEC_PHI]]
 ; CHECK-NEXT:    [[TMP53:%.*]] = call i64 @llvm.vector.reduce.smin.v4i64(<4 x i64> [[TMP52]])
 ; CHECK-NEXT:    [[TMP54:%.*]] = add nsw i64 [[TMP53]], -1
 ; CHECK-NEXT:    [[TMP55:%.*]] = select <4 x i1> [[TMP2]], <4 x i1> [[TMP50]], <4 x i1> [[VEC_PHI3]]
@@ -171,7 +171,7 @@ define i64 @select_decreasing_induction_icmp_non_const_start(ptr %a, ptr %b, i64
 entry:
   br label %loop
 
-loop:                                             ; preds = %entry, %loop
+loop:
   %iv = phi i64 [ %iv.next, %loop ], [ %n, %entry ]
   %rdx = phi i64 [ %cond, %loop ], [ %rdx.start, %entry ]
   %iv.next = add nsw i64 %iv, -1
@@ -184,6 +184,6 @@ loop:                                             ; preds = %entry, %loop
   %exit.cond = icmp ugt i64 %iv, 1
   br i1 %exit.cond, label %loop, label %exit
 
-exit:                                             ; preds = %loop
+exit:
   ret i64 %cond
 }

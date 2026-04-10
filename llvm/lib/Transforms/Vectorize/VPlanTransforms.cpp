@@ -5799,8 +5799,6 @@ void VPlanTransforms::optimizeFindIVReductions(VPlan &Plan,
     // select.
     VPValue *BackedgeVal = PhiR->getBackedgeValue();
     auto *FindLastSelect = cast<VPSingleDefRecipe>(BackedgeVal);
-    auto *PredSelect =
-        HeaderMask ? cast<VPSingleDefRecipe>(BackedgeVal) : nullptr;
     if (HeaderMask &&
         !match(BackedgeVal,
                m_Select(m_Specific(HeaderMask),
@@ -5880,6 +5878,15 @@ void VPlanTransforms::optimizeFindIVReductions(VPlan &Plan,
         continue;
     }
 
+    // When tail folding, mask the condition with the header mask to prevent
+    // propagating poison from inactive lanes in the last vector iteration.
+    if (HeaderMask) {
+      VPBuilder LoopBuilder(FindLastSelect->getDefiningRecipe());
+      auto *Or = LoopBuilder.createLogicalAnd(HeaderMask,
+                                              FindLastSelect->getOperand(0));
+      FindLastSelect->setOperand(0, Or);
+    }
+
     VPInstruction *RdxResult = cast<VPInstruction>(vputils::findRecipe(
         BackedgeVal,
         match_fn(m_VPInstruction<VPInstruction::ComputeReductionResult>())));
@@ -5902,10 +5909,6 @@ void VPlanTransforms::optimizeFindIVReductions(VPlan &Plan,
       }
     }
 
-    // Update the predicated select with FindLastSelect when folding tail.
-    if (HeaderMask)
-      PredSelect->setOperand(1, FindLastSelect);
-
     // Create the reduction result in the middle block using sentinel directly.
     RecurKind MinMaxKind =
         UseMax ? (UseSigned ? RecurKind::SMax : RecurKind::UMax)
@@ -5915,8 +5918,7 @@ void VPlanTransforms::optimizeFindIVReductions(VPlan &Plan,
     DebugLoc ExitDL = RdxResult->getDebugLoc();
     VPBuilder MiddleBuilder(RdxResult);
     VPValue *ReducedIV = MiddleBuilder.createNaryOp(
-        VPInstruction::ComputeReductionResult,
-        HeaderMask ? PredSelect : FindLastSelect, Flags, ExitDL);
+        VPInstruction::ComputeReductionResult, FindLastSelect, Flags, ExitDL);
 
     // If IVOfExpressionToSink is an expression to sink, sink it now.
     VPValue *VectorRegionExitingVal = ReducedIV;
