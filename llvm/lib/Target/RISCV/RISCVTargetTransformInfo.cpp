@@ -1740,12 +1740,6 @@ RISCVTTIImpl::getIntrinsicInstrCost(const IntrinsicCostAttributes &ICA,
     auto *StepVecTy = VectorType::get(StepTy, ValTy->getElementCount());
     auto StepLT = getTypeLegalizationCost(StepVecTy);
 
-    // Currently expandVectorFindLastActive cannot handle step vector split.
-    // So return invalid when the type needs split.
-    // FIXME: Remove this if expandVectorFindLastActive supports split vector.
-    if (StepLT.first > 1)
-      return InstructionCost::getInvalid();
-
     InstructionCost Cost = 0;
     unsigned Opcodes[] = {RISCV::VID_V, RISCV::VREDMAXU_VS, RISCV::VMV_X_S};
 
