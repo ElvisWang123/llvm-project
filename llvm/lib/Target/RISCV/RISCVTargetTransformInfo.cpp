@@ -1736,21 +1736,40 @@ RISCVTTIImpl::getIntrinsicInstrCost(const IntrinsicCostAttributes &ICA,
         TLI->getVectorIdxTy(getDataLayout()), MaskTy->getElementCount(),
         /*ZeroIsPoison=*/true, &VScaleRange);
     EltWidth = std::max(EltWidth, MaskTy->getScalarSizeInBits());
-    Type *StepTy = Type::getIntNTy(MaskTy->getContext(), EltWidth);
-    auto *StepVecTy = VectorType::get(StepTy, ValTy->getElementCount());
-    auto StepLT = getTypeLegalizationCost(StepVecTy);
+    Type *FindLastActiveTy = Type::getIntNTy(MaskTy->getContext(), EltWidth);
+    auto *FindLastActiveVecTy =
+        VectorType::get(FindLastActiveTy, ValTy->getElementCount());
+    auto FindLastActiveLT = getTypeLegalizationCost(FindLastActiveVecTy);
 
     InstructionCost Cost = 0;
-    unsigned Opcodes[] = {RISCV::VID_V, RISCV::VREDMAXU_VS, RISCV::VMV_X_S};
 
     Cost += MaskLT.first *
             getRISCVInstructionCost(RISCV::VCPOP_M, MaskLT.second, CostKind);
     Cost += getCFInstrCost(Instruction::CondBr, CostKind, nullptr);
-    Cost += StepLT.first *
-            getRISCVInstructionCost(Opcodes, StepLT.second, CostKind);
-    Cost += getCastInstrCost(Instruction::ZExt,
-                             Type::getInt64Ty(ValTy->getContext()), StepTy,
-                             TTI::CastContextHint::None, CostKind, nullptr);
+
+    // Cost of FindLastActive
+    unsigned FindLastActiveOpcodes[] = {RISCV::VID_V, RISCV::VREDMAXU_VS,
+                                        RISCV::VMV_X_S};
+    InstructionCost FindLastActiveCost = getRISCVInstructionCost(
+        FindLastActiveOpcodes, FindLastActiveLT.second, CostKind);
+    Cost += FindLastActiveCost;
+
+    // If the step vector needs to be split, it will generate multiple levels of
+    // slidedown + reduce.or + select to find the target subvector needs to
+    // be extracted.
+    unsigned SelectSubVecOpcodes[] = {RISCV::VSLIDEDOWN_VI, RISCV::VCPOP_M};
+    if (FindLastActiveLT.first > 1)
+      Cost += (FindLastActiveLT.first - 1) *
+              (getRISCVInstructionCost(SelectSubVecOpcodes, MaskLT.second,
+                                       CostKind) +
+               getCFInstrCost(Instruction::CondBr, CostKind, nullptr) +
+               FindLastActiveCost);
+
+    Cost += getCastInstrCost(
+        Instruction::ZExt, Type::getInt64Ty(ValTy->getContext()),
+        FindLastActiveTy, TTI::CastContextHint::None, CostKind, nullptr);
+
+    // Cost of extract last active element.
     Cost += ValLT.first *
             getRISCVInstructionCost({RISCV::VSLIDEDOWN_VI, RISCV::VMV_X_S},
                                     ValLT.second, CostKind);
