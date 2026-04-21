@@ -27,7 +27,7 @@ define void @extractions() {
 ; CHECK-NEXT:  Cost Model: Found an estimated cost of 11 for instruction: %v16bf16 = call bfloat @llvm.experimental.vector.extract.last.active.v16bf16(<16 x bfloat> poison, <16 x i1> poison, bfloat poison)
 ; CHECK-NEXT:  Cost Model: Found an estimated cost of 10 for instruction: %v8f32 = call float @llvm.experimental.vector.extract.last.active.v8f32(<8 x float> poison, <8 x i1> poison, float poison)
 ; CHECK-NEXT:  Cost Model: Found an estimated cost of 9 for instruction: %v4f64 = call double @llvm.experimental.vector.extract.last.active.v4f64(<4 x double> poison, <4 x i1> poison, double poison)
-; CHECK-NEXT:  Cost Model: Found an estimated cost of 74 for instruction: %nxv32i8 = call i8 @llvm.experimental.vector.extract.last.active.nxv32i8(<vscale x 32 x i8> poison, <vscale x 32 x i1> poison, i8 poison)
+; CHECK-NEXT:  Cost Model: Found an estimated cost of 61 for instruction: %nxv32i8 = call i8 @llvm.experimental.vector.extract.last.active.nxv32i8(<vscale x 32 x i8> poison, <vscale x 32 x i1> poison, i8 poison)
 ; CHECK-NEXT:  Cost Model: Found an estimated cost of 36 for instruction: %nxv16i16 = call i16 @llvm.experimental.vector.extract.last.active.nxv16i16(<vscale x 16 x i16> poison, <vscale x 16 x i1> poison, i16 poison)
 ; CHECK-NEXT:  Cost Model: Found an estimated cost of 20 for instruction: %nxv8i32 = call i32 @llvm.experimental.vector.extract.last.active.nxv8i32(<vscale x 8 x i32> poison, <vscale x 8 x i1> poison, i32 poison)
 ; CHECK-NEXT:  Cost Model: Found an estimated cost of 15 for instruction: %nxv4i64 = call i64 @llvm.experimental.vector.extract.last.active.nxv4i64(<vscale x 4 x i64> poison, <vscale x 4 x i1> poison, i64 poison)
