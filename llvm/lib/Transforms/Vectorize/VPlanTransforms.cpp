@@ -1850,7 +1850,7 @@ void VPlanTransforms::narrowScatters(VPlan &Plan, VPCostContext &Ctx,
   for (VPBasicBlock *VPBB : VPBlockUtils::blocksOnly<VPBasicBlock>(
            vp_depth_first_shallow(Plan.getVectorLoopRegion()->getEntry()))) {
     for (VPRecipeBase &R : make_early_inc_range(reverse(*VPBB))) {
-      // Convert an unmasked or header masked scatter with an uniform address
+      // Convert an unmasked or header masked scatter with a uniform address
       // into extract-last-lane + scalar store.
       auto *WidenStoreR = dyn_cast<VPWidenStoreRecipe>(&R);
       if (!WidenStoreR ||
@@ -1870,12 +1870,51 @@ void VPlanTransforms::narrowScatters(VPlan &Plan, VPCostContext &Ctx,
         // TODO: Sink the scalar store recipe to middle block if possible.
         auto *ScalarStore = new VPReplicateRecipe(
             &WidenStoreR->getIngredient(), {Extract, WidenStoreR->getAddr()},
-            true /*IsSingleScalar*/, nullptr /*Mask*/, {},
-            *WidenStoreR /*Metadata*/);
+            /*IsSingleScalar*/ true, /*Mask*/ nullptr, {},
+            /*Metadata*/ *WidenStoreR);
         Extract->insertBefore(WidenStoreR);
         ScalarStore->insertBefore(WidenStoreR);
         WidenStoreR->eraseFromParent();
       } else {
+        // If the body is header-masked, it guarantees each iteration has at
+        // least one active lane. So it is safe to convert the scatter to a
+        // scalar store.
+        if (!LoopVectorizationPlanner::getDecisionAndClampRange(
+                [&](ElementCount VF) {
+                  InstructionCost ScatterCost =
+                      WidenStoreR->computeCost(VF, Ctx);
+                  auto *ValTy =
+                      Ctx.Types.inferScalarType(WidenStoreR->getStoredValue());
+
+                  // ScalarCost = LastActiveLaneCost + ExtractLaneCost +
+                  // ScalarStoreCost.
+                  InstructionCost ScalarCost = 0;
+
+                  // LastActiveLane can lower to EVL - 1 when folding tail with
+                  // EVL.
+                  if (FoldTailWithEVL)
+                    ScalarCost +=
+                        VPRecipeWithIRFlags::getCostForRecipeWithOpcodeAndTypes(
+                            Instruction::Sub, Type::getInt32Ty(Ctx.LLVMCtx),
+                            nullptr, ElementCount::getFixed(1), Ctx);
+                  else
+                    ScalarCost +=
+                        VPRecipeWithIRFlags::getCostForRecipeWithOpcodeAndTypes(
+                            VPInstruction::LastActiveLane,
+                            Type::getInt1Ty(Ctx.LLVMCtx), nullptr, VF, Ctx);
+                  ScalarCost +=
+                      VPRecipeWithIRFlags::getCostForRecipeWithOpcodeAndTypes(
+                          VPInstruction::ExtractLane, ValTy, nullptr, VF, Ctx);
+                  ScalarCost +=
+                      VPRecipeWithIRFlags::getCostForRecipeWithOpcodeAndTypes(
+                          Instruction::Store, ValTy,
+                          &WidenStoreR->getIngredient(), VF, Ctx);
+
+                  return ScalarCost.isValid() && ScalarCost <= ScatterCost;
+                },
+                Range)) {
+          continue;
+        }
         VPBuilder Builder(WidenStoreR);
         VPInstruction *LastActiveLane =
             Builder.createNaryOp(VPInstruction::LastActiveLane, {Mask});
@@ -1884,43 +1923,10 @@ void VPlanTransforms::narrowScatters(VPlan &Plan, VPCostContext &Ctx,
             {LastActiveLane, WidenStoreR->getStoredValue()});
         auto *ScalarStore = new VPReplicateRecipe(
             &WidenStoreR->getIngredient(), {Extract, WidenStoreR->getAddr()},
-            true /*IsSingleScalar*/, nullptr /*Mask*/, {},
-            *WidenStoreR /*Metadata*/);
+            /*IsSingleScalar*/ true, /*Mask*/ nullptr, {},
+            /*Metadata*/ *WidenStoreR);
         ScalarStore->insertBefore(WidenStoreR);
-
-        // If the mask is the header mask, this mask contains at least one
-        // active lane. So it is safe to convert the scatter to a scalar
-        // store. Note that this will generate LastActiveLane which can only be
-        // used on header mask.
-        if (LoopVectorizationPlanner::getDecisionAndClampRange(
-                [&](ElementCount VF) {
-                  InstructionCost ScatterCost =
-                      WidenStoreR->computeCost(VF, Ctx);
-                  // ConvertToScalarCost = LastActiveLane + ExtractLane +
-                  // scalar store.
-                  InstructionCost ScalarCost = 0;
-
-                  // LastActiveLane can lower to EVL - 1 when folding tail with
-                  // EVL.
-                  if (FoldTailWithEVL)
-                    ScalarCost += Ctx.TTI.getArithmeticInstrCost(
-                        Instruction::Sub, Type::getInt32Ty(Ctx.LLVMCtx),
-                        Ctx.CostKind);
-                  else
-                    ScalarCost += LastActiveLane->computeCost(VF, Ctx);
-                  ScalarCost += Extract->computeCost(VF, Ctx);
-                  ScalarCost += ScalarStore->computeCost(VF, Ctx);
-
-                  return ScalarCost.isValid() && ScalarCost <= ScatterCost;
-                },
-                Range)) {
-          WidenStoreR->eraseFromParent();
-          continue;
-        }
-        // Remove unused scalar recipes.
-        ScalarStore->eraseFromParent();
-        Extract->eraseFromParent();
-        LastActiveLane->eraseFromParent();
+        WidenStoreR->eraseFromParent();
       }
     }
   }
