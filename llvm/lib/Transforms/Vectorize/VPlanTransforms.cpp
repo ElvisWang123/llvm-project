@@ -1842,8 +1842,7 @@ getUnmaskedDivRemOpcode(Intrinsic::ID ID) {
 }
 
 void VPlanTransforms::narrowScatters(VPlan &Plan, VPCostContext &Ctx,
-                                     VFRange &Range,
-                                     const bool &FoldTailWithEVL) {
+                                     VFRange &Range, bool FoldTailWithEVL) {
   if (Plan.hasScalarVFOnly())
     return;
 
@@ -1859,75 +1858,57 @@ void VPlanTransforms::narrowScatters(VPlan &Plan, VPCostContext &Ctx,
         continue;
       VPValue *Mask = WidenStoreR->getMask();
 
-      // Convert the scatter to a scalar store if it is unmasked or header
-      // masked.
-      if (Mask && !vputils::isHeaderMask(Mask, Plan))
+      // Convert the scatter to a scalar store if it is header masked.
+      if (!Mask || !vputils::isHeaderMask(Mask, Plan))
         continue;
 
-      if (!Mask) {
-        VPInstruction *Extract = new VPInstruction(
-            VPInstruction::ExtractLastLane, {WidenStoreR->getOperand(1)});
-        // TODO: Sink the scalar store recipe to middle block if possible.
-        auto *ScalarStore = new VPReplicateRecipe(
-            &WidenStoreR->getIngredient(), {Extract, WidenStoreR->getAddr()},
-            /*IsSingleScalar*/ true, /*Mask*/ nullptr, {},
-            /*Metadata*/ *WidenStoreR);
-        Extract->insertBefore(WidenStoreR);
-        ScalarStore->insertBefore(WidenStoreR);
-        WidenStoreR->eraseFromParent();
-      } else {
-        // If the body is header-masked, it guarantees each iteration has at
-        // least one active lane. So it is safe to convert the scatter to a
-        // scalar store.
-        if (!LoopVectorizationPlanner::getDecisionAndClampRange(
-                [&](ElementCount VF) {
-                  InstructionCost ScatterCost =
-                      WidenStoreR->computeCost(VF, Ctx);
-                  auto *ValTy =
-                      Ctx.Types.inferScalarType(WidenStoreR->getStoredValue());
+      // If the body is header-masked, it guarantees each iteration has at
+      // least one active lane. So it is safe to convert the scatter to a
+      // scalar store.
+      if (!LoopVectorizationPlanner::getDecisionAndClampRange(
+              [&](ElementCount VF) {
+                InstructionCost ScatterCost = WidenStoreR->computeCost(VF, Ctx);
+                auto *ValTy =
+                    Ctx.Types.inferScalarType(WidenStoreR->getStoredValue());
 
-                  // ScalarCost = LastActiveLaneCost + ExtractLaneCost +
-                  // ScalarStoreCost.
-                  InstructionCost ScalarCost = 0;
+                // ScalarCost = LastActiveLaneCost + ExtractLaneCost +
+                // ScalarStoreCost.
+                InstructionCost ScalarCost = 0;
 
-                  // LastActiveLane can lower to EVL - 1 when folding tail with
-                  // EVL.
-                  if (FoldTailWithEVL)
-                    ScalarCost +=
-                        VPRecipeWithIRFlags::getCostForRecipeWithOpcodeAndTypes(
-                            Instruction::Sub, Type::getInt32Ty(Ctx.LLVMCtx),
-                            nullptr, ElementCount::getFixed(1), Ctx);
-                  else
-                    ScalarCost +=
-                        VPRecipeWithIRFlags::getCostForRecipeWithOpcodeAndTypes(
-                            VPInstruction::LastActiveLane,
-                            Type::getInt1Ty(Ctx.LLVMCtx), nullptr, VF, Ctx);
+                // LastActiveLane can lower to EVL - 1 when folding tail with
+                // EVL.
+                if (FoldTailWithEVL)
                   ScalarCost +=
-                      VPRecipeWithIRFlags::getCostForRecipeWithOpcodeAndTypes(
-                          VPInstruction::ExtractLane, ValTy, nullptr, VF, Ctx);
+                      VPInstruction::getCostForRecipeWithOpcodeAndTypes(
+                          Instruction::Sub, Type::getInt32Ty(Ctx.LLVMCtx),
+                          nullptr, ElementCount::getFixed(1), Ctx);
+                else
                   ScalarCost +=
-                      VPRecipeWithIRFlags::getCostForRecipeWithOpcodeAndTypes(
-                          Instruction::Store, ValTy,
-                          &WidenStoreR->getIngredient(), VF, Ctx);
+                      VPInstruction::getCostForRecipeWithOpcodeAndTypes(
+                          VPInstruction::LastActiveLane,
+                          Type::getInt1Ty(Ctx.LLVMCtx), nullptr, VF, Ctx);
+                ScalarCost += VPInstruction::getCostForRecipeWithOpcodeAndTypes(
+                    VPInstruction::ExtractLane, ValTy, nullptr, VF, Ctx);
+                ScalarCost += VPInstruction::getCostForRecipeWithOpcodeAndTypes(
+                    Instruction::Store, ValTy, &WidenStoreR->getIngredient(),
+                    VF, Ctx);
 
-                  return ScalarCost.isValid() && ScalarCost <= ScatterCost;
-                },
-                Range)) {
-          continue;
-        }
-        VPBuilder Builder(WidenStoreR);
-        VPInstruction *LastActiveLane =
-            Builder.createNaryOp(VPInstruction::LastActiveLane, {Mask});
-        VPInstruction *Extract = Builder.createNaryOp(
-            VPInstruction::ExtractLane,
-            {LastActiveLane, WidenStoreR->getStoredValue()});
-        auto *ScalarStore = new VPReplicateRecipe(
-            &WidenStoreR->getIngredient(), {Extract, WidenStoreR->getAddr()},
-            /*IsSingleScalar*/ true, /*Mask*/ nullptr, {},
-            /*Metadata*/ *WidenStoreR);
-        ScalarStore->insertBefore(WidenStoreR);
-        WidenStoreR->eraseFromParent();
-      }
+                return ScalarCost.isValid() && ScalarCost <= ScatterCost;
+              },
+              Range))
+        continue;
+      VPBuilder Builder(WidenStoreR);
+      VPInstruction *LastActiveLane =
+          Builder.createNaryOp(VPInstruction::LastActiveLane, {Mask});
+      VPInstruction *Extract =
+          Builder.createNaryOp(VPInstruction::ExtractLane,
+                               {LastActiveLane, WidenStoreR->getStoredValue()});
+      auto *ScalarStore = new VPReplicateRecipe(
+          &WidenStoreR->getIngredient(), {Extract, WidenStoreR->getAddr()},
+          /*IsSingleScalar*/ true, /*Mask*/ nullptr, {},
+          /*Metadata*/ *WidenStoreR);
+      ScalarStore->insertBefore(WidenStoreR);
+      WidenStoreR->eraseFromParent();
     }
   }
 }

@@ -6830,7 +6830,6 @@ void LoopVectorizationPlanner::buildVPlans(ElementCount MinVF,
     RUN_VPLAN_PASS(VPlanTransforms::truncateToMinimalBitwidths, *Plan,
                    Config.getMinimalBitwidths());
     RUN_VPLAN_PASS(VPlanTransforms::optimize, *Plan);
-    // TODO: Try to put narrowScatters in VPlanTransforms::optimize
     VPCostContext CostCtx(CM.TTI, *CM.TLI, *Plan, CM, Config.CostKind, CM.PSE,
                           OrigLoop);
     RUN_VPLAN_PASS(VPlanTransforms::narrowScatters, *Plan, CostCtx, SubRange,

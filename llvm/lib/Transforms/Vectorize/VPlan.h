@@ -1152,15 +1152,6 @@ struct VPRecipeWithIRFlags : public VPSingleDefRecipe, public VPIRFlags {
   /// Compute the cost for this recipe for \p VF, using \p Opcode and \p Ctx.
   InstructionCost getCostForRecipeWithOpcode(unsigned Opcode, ElementCount VF,
                                              VPCostContext &Ctx) const;
-
-  /// Compute the cost for a recipe with \p VF using \p Opcode, \p ValTy.
-  /// This function may not be as accurate as
-  /// `getCostForRecipeWithOpcode` since it only provides type-based queries.
-  static InstructionCost getCostForRecipeWithOpcodeAndTypes(unsigned Opcode,
-                                                            Type *ValTy,
-                                                            Instruction *I,
-                                                            ElementCount VF,
-                                                            VPCostContext &Ctx);
 };
 
 /// Helper to access the operand that contains the unroll part for this recipe
@@ -1507,6 +1498,15 @@ public:
 
   /// Set the symbolic name for the VPInstruction.
   void setName(StringRef NewName) { Name = NewName.str(); }
+
+  /// Compute the cost for a recipe with \p VF using \p Opcode, \p ValTy.
+  /// This function may not be as accurate as
+  /// `getCostForRecipeWithOpcode` since it only provides type-based queries.
+  static InstructionCost getCostForRecipeWithOpcodeAndTypes(unsigned Opcode,
+                                                            Type *ValTy,
+                                                            Instruction *I,
+                                                            ElementCount VF,
+                                                            VPCostContext &Ctx);
 
 protected:
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
