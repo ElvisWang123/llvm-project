@@ -1852,8 +1852,7 @@ void VPlanTransforms::narrowScatters(VPlan &Plan, VPCostContext &Ctx,
       // Convert an unmasked or header masked scatter with a uniform address
       // into extract-last-lane + scalar store.
       auto *WidenStoreR = dyn_cast<VPWidenStoreRecipe>(&R);
-      if (!WidenStoreR ||
-          !vputils::isUniformAcrossVFsAndUFs(WidenStoreR->getAddr()) ||
+      if (!WidenStoreR || !vputils::isSingleScalar(WidenStoreR->getAddr()) ||
           WidenStoreR->isConsecutive())
         continue;
       VPValue *Mask = WidenStoreR->getMask();

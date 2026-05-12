@@ -25,11 +25,13 @@
 ; CHECK: VPlan for loop in 'foo' after VPlanTransforms::createPartialReductions
 ; CHECK: VPlan for loop in 'foo' after VPlanTransforms::convertToAbstractRecipes
 ; CHECK: VPlan for loop in 'foo' after VPlanTransforms::createInterleaveGroups
+; CHECK: VPlan for loop in 'foo' after VPlanTransforms::truncateToMinimalBitwidths
+; CHECK: VPlan for loop in 'foo' after VPlanTransforms::simplifyRecipes
+; CHECK: VPlan for loop in 'foo' after VPlanTransforms::narrowScatters
 ; CHECK: VPlan for loop in 'foo' after VPlanTransforms::replaceSymbolicStrides
 ; CHECK: VPlan for loop in 'foo' after VPlanTransforms::dropPoisonGeneratingRecipes
 ; CHECK: VPlan for loop in 'foo' after VPlanTransforms::hoistPredicatedLoads
 ; CHECK: VPlan for loop in 'foo' after VPlanTransforms::sinkPredicatedStores
-; CHECK: VPlan for loop in 'foo' after VPlanTransforms::truncateToMinimalBitwidths
 ; CHECK: VPlan for loop in 'foo' after removeRedundantInductionCasts
 ; CHECK: VPlan for loop in 'foo' after reassociateHeaderMask
 ; CHECK: VPlan for loop in 'foo' after simplifyRecipes
@@ -46,7 +48,6 @@
 ; CHECK: VPlan for loop in 'foo' after mergeBlocksIntoPredecessors
 ; CHECK: VPlan for loop in 'foo' after licm
 ; CHECK: VPlan for loop in 'foo' after VPlanTransforms::optimize
-; CHECK: VPlan for loop in 'foo' after VPlanTransforms::narrowScatters
 ; CHECK: VPlan for loop in 'foo' after printOptimizedVPlan
 ; CHECK: VPlan for loop in 'foo' after VPlanTransforms::addMinimumIterationCheck
 ; CHECK: VPlan for loop in 'foo' after VPlanTransforms::unrollByUF
