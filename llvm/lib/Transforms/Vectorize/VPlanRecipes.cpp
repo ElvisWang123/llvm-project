@@ -989,20 +989,18 @@ InstructionCost VPInstruction::getCostForRecipeWithOpcodeAndTypes(
     // index.
     if (VF.isScalar())
       return 0;
-    auto *VecTy = toVectorTy(ValTy, VF);
-    return Ctx.TTI.getVectorInstrCost(Instruction::ExtractElement, VecTy,
-                                      Ctx.CostKind);
+    return Ctx.TTI.getVectorInstrCost(Instruction::ExtractElement,
+                                      toVectorTy(ValTy, VF), Ctx.CostKind);
   }
   case Instruction::Store: {
     assert(I && "Querying cost for store must have underlying instruction.");
-    unsigned AS = getLoadStoreAddressSpace(I);
-    TTI::OperandValueInfo OpInfo = TTI::getOperandInfo(I->getOperand(0));
-    return Ctx.TTI.getMemoryOpCost(Opcode, ValTy, getLoadStoreAlignment(I), AS,
-                                   Ctx.CostKind, OpInfo, I);
+    return Ctx.TTI.getMemoryOpCost(Opcode, ValTy, getLoadStoreAlignment(I),
+                                   getLoadStoreAddressSpace(I), Ctx.CostKind,
+                                   TTI::getOperandInfo(I->getOperand(0)), I);
   }
   case Instruction::Sub: {
-    ValTy = toVectorTy(ValTy, VF);
-    return Ctx.TTI.getArithmeticInstrCost(Opcode, ValTy, Ctx.CostKind);
+    return Ctx.TTI.getArithmeticInstrCost(Opcode, toVectorTy(ValTy, VF),
+                                          Ctx.CostKind);
   }
   default:
     llvm_unreachable("Unsupported opcode");

@@ -1843,21 +1843,19 @@ getUnmaskedDivRemOpcode(Intrinsic::ID ID) {
 
 void VPlanTransforms::narrowScatters(VPlan &Plan, VPCostContext &Ctx,
                                      VFRange &Range, bool FoldTailWithEVL) {
-  if (Plan.hasScalarVFOnly())
-    return;
-
   for (VPBasicBlock *VPBB : VPBlockUtils::blocksOnly<VPBasicBlock>(
            vp_depth_first_shallow(Plan.getVectorLoopRegion()->getEntry()))) {
-    for (VPRecipeBase &R : make_early_inc_range(reverse(*VPBB))) {
+    for (VPRecipeBase &R : make_early_inc_range(*VPBB)) {
       // Convert an unmasked or header masked scatter with a uniform address
       // into extract-last-lane + scalar store.
       auto *WidenStoreR = dyn_cast<VPWidenStoreRecipe>(&R);
-      if (!WidenStoreR || !vputils::isSingleScalar(WidenStoreR->getAddr()) ||
+      if (!WidenStoreR ||
+          !vputils::isUniformAcrossVFsAndUFs(WidenStoreR->getAddr()) ||
           WidenStoreR->isConsecutive())
         continue;
-      VPValue *Mask = WidenStoreR->getMask();
 
       // Convert the scatter to a scalar store if it is header masked.
+      VPValue *Mask = WidenStoreR->getMask();
       if (!Mask || !vputils::isHeaderMask(Mask, Plan))
         continue;
 
@@ -1876,23 +1874,21 @@ void VPlanTransforms::narrowScatters(VPlan &Plan, VPCostContext &Ctx,
 
                 // LastActiveLane can lower to EVL - 1 when folding tail with
                 // EVL.
-                if (FoldTailWithEVL)
-                  ScalarCost +=
-                      VPInstruction::getCostForRecipeWithOpcodeAndTypes(
-                          Instruction::Sub, Type::getInt32Ty(Ctx.LLVMCtx),
-                          nullptr, ElementCount::getFixed(1), Ctx);
-                else
-                  ScalarCost +=
-                      VPInstruction::getCostForRecipeWithOpcodeAndTypes(
-                          VPInstruction::LastActiveLane,
-                          Type::getInt1Ty(Ctx.LLVMCtx), nullptr, VF, Ctx);
+                ScalarCost +=
+                    FoldTailWithEVL
+                        ? VPInstruction::getCostForRecipeWithOpcodeAndTypes(
+                              Instruction::Sub, Type::getInt32Ty(Ctx.LLVMCtx),
+                              nullptr, ElementCount::getFixed(1), Ctx)
+                        : VPInstruction::getCostForRecipeWithOpcodeAndTypes(
+                              VPInstruction::LastActiveLane,
+                              Type::getInt1Ty(Ctx.LLVMCtx), nullptr, VF, Ctx);
                 ScalarCost += VPInstruction::getCostForRecipeWithOpcodeAndTypes(
                     VPInstruction::ExtractLane, ValTy, nullptr, VF, Ctx);
                 ScalarCost += VPInstruction::getCostForRecipeWithOpcodeAndTypes(
                     Instruction::Store, ValTy, &WidenStoreR->getIngredient(),
                     VF, Ctx);
 
-                return ScalarCost.isValid() && ScalarCost <= ScatterCost;
+                return ScalarCost <= ScatterCost;
               },
               Range))
         continue;
