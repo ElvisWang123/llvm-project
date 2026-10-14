@@ -869,7 +869,8 @@ void VPlanTransforms::materializeVectorTripCount(
   // possible runtime step, then TC % Step == 0 for all valid vscale values
   // and the vector trip count equals TC directly.
   const APInt *TCVal;
-  if (!RequiresScalarEpilogue && match(TC, m_APInt(TCVal)) && MaxRuntimeStep &&
+  if ((!RequiresScalarEpilogue || Plan.hasLastIterationPeeled()) &&
+      match(TC, m_APInt(TCVal)) && MaxRuntimeStep &&
       TCVal->urem(*MaxRuntimeStep) == 0) {
     VectorTC.replaceAllUsesWith(TC);
     return;
@@ -896,15 +897,15 @@ void VPlanTransforms::materializeVectorTripCount(
       Builder.createNaryOp(Instruction::URem, {TC, Step},
                            DebugLoc::getCompilerGenerated(), "n.mod.vf");
 
-  // There are cases where we *must* run at least one iteration in the remainder
-  // loop.  See the cost model for when this can happen.  If the step evenly
-  // divides the trip count, we set the remainder to be equal to the step. If
-  // the step does not evenly divide the trip count, no adjustment is necessary
-  // since there will already be scalar iterations. Note that the minimum
-  // iterations check ensures that N >= Step.
-  if (RequiresScalarEpilogue) {
-    assert(!TailByMasking &&
-           "requiring scalar epilogue is not supported with fail folding");
+  // For a non-tail-folded loop, there are cases where we *must* run at least
+  // one iteration in the remainder loop unless it has already been peeled.
+  // See the cost model for when this can happen. If the step evenly divides the
+  // trip count, we set the remainder to be equal to the step. If the step does
+  // not evenly divide the trip count, no adjustment is necessary since there
+  // will already be scalar iterations.
+  // Note that the minimum iterations check ensures that N >= Step.
+  if (RequiresScalarEpilogue && !TailByMasking &&
+      !Plan.hasLastIterationPeeled()) {
     VPValue *IsZero =
         Builder.createICmp(CmpInst::ICMP_EQ, R, Plan.getZero(TCTy));
     R = Builder.createSelect(IsZero, Step, R);

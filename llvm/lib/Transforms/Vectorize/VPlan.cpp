@@ -1263,6 +1263,7 @@ VPlan *VPlan::duplicate() {
   NewPlan->UFs = UFs;
   // TODO: Adjust names.
   NewPlan->Name = Name;
+  NewPlan->LastIterationPeeled = LastIterationPeeled;
   if (TripCount) {
     assert(Old2NewVPValues.contains(TripCount) &&
            "TripCount must have been added to Old2NewVPValues");

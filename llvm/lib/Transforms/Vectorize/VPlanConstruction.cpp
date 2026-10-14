@@ -1447,6 +1447,35 @@ void VPlanTransforms::foldTailByMasking(VPlan &Plan) {
   Plan.getMiddleBlock()->getTerminator()->setOperand(0, Plan.getTrue());
 }
 
+void VPlanTransforms::peelLastIteration(VPlan &Plan,
+                                      PredicatedScalarEvolution &PSE) {
+  assert(!Plan.hasLastIterationPeeled() && "Last iteration already peeled");
+  assert(Plan.getMiddleBlock()->getNumSuccessors() == 2 &&
+         "Expected a scalar epilogue successor");
+  assert(Plan.getMiddleBlock()->getSuccessors()[1] == Plan.getScalarPreheader() &&
+         "Expected the false successor to be the scalar preheader");
+  assert(match(Plan.getMiddleBlock()->getTerminator(),
+               m_BranchOnCond(m_VPValue())) &&
+         "Expected a branch-on-condition middle block terminator");
+
+  VPValue *TC = Plan.getTripCount();
+  ScalarEvolution &SE = *PSE.getSE();
+  const SCEV *TCSCEV = vputils::getSCEVExprForVPValue(TC, PSE);
+  const SCEV *PeeledTC =
+      SE.getMinusSCEV(TCSCEV, SE.getOne(TCSCEV->getType()));
+  VPValue *PeeledTCVPV =
+      vputils::getOrCreateVPValueForSCEVExpr(Plan, PeeledTC);
+  // TC may also be used by the original program; only reset the plan's budget.
+  Plan.resetTripCount(PeeledTCVPV);
+
+  if (TC->user_empty())
+    if (auto *TCRecipe = dyn_cast<VPExpandSCEVRecipe>(TC))
+      TCRecipe->eraseFromParent();
+
+  Plan.getMiddleBlock()->getTerminator()->setOperand(0, Plan.getFalse());
+  Plan.markLastIterationPeeled();
+}
+
 /// Add an incoming value to all phis in \p VPBB for its just-added last
 /// predecessor, re-using the value of the previously last one.
 static void addIncomingForLastPredecessor(VPBasicBlock *VPBB) {
@@ -1602,13 +1631,16 @@ void VPlanTransforms::addMinimumIterationCheck(
     bool TailFolded, Loop *OrigLoop, const uint32_t *MinItersBypassWeights,
     DebugLoc DL, PredicatedScalarEvolution &PSE, VPBasicBlock *CheckBlock) {
   // Generate code to check if the loop's trip count is less than VF * UF, or
-  // equal to it in case a scalar epilogue is required; this implies that the
-  // vector trip count is zero. This check also covers the case where adding one
-  // to the backedge-taken count overflowed leading to an incorrect trip count
-  // of zero. In this case we will also jump to the scalar loop.
+  // equal to it in case a scalar epilogue is required and has not already been
+  // peeled; this implies that the vector trip count is zero. For a tail-folded
+  // plan with a scalar epilogue, check the peeled trip count against one instead.
+  // This check also covers the case where adding one to the backedge-taken count
+  // overflowed leading to an incorrect trip count of zero. In this case we will
+  // also jump to the scalar loop.
   CmpInst::Predicate CmpPred =
-      RequiresScalarEpilogue ? ICmpInst::ICMP_ULE : ICmpInst::ICMP_ULT;
-  // If tail is to be folded, vector loop takes care of all iterations.
+      TailFolded || !RequiresScalarEpilogue || Plan.hasLastIterationPeeled()
+          ? ICmpInst::ICMP_ULT
+          : ICmpInst::ICMP_ULE;
   VPValue *TripCountVPV = Plan.getTripCount();
   const SCEV *TripCount = vputils::getSCEVExprForVPValue(TripCountVPV, PSE);
   Type *TripCountTy = TripCount->getType();
@@ -1629,10 +1661,10 @@ void VPlanTransforms::addMinimumIterationCheck(
 
   VPBuilder Builder(CheckBlock);
   VPValue *TripCountCheck = Plan.getFalse();
-  const SCEV *Step = GetMinTripCount();
-  // TripCountCheck = false, folding tail implies positive vector trip
-  // count.
-  if (!TailFolded) {
+  const SCEV *Step = TailFolded ? SE.getOne(TripCountTy) : GetMinTripCount();
+  // Tail folding without a scalar epilogue implies a positive vector trip
+  // count. A peeled last iteration needs a check for a zero peeled trip count.
+  if (!TailFolded || RequiresScalarEpilogue) {
     // TODO: Emit unconditional branch to vector preheader instead of
     // conditional branch with known condition.
     TripCount = SE.applyLoopGuards(TripCount, OrigLoop);

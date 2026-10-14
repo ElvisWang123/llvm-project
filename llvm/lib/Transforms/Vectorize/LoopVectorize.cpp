@@ -1022,9 +1022,20 @@ public:
     return InterleaveInfo.getInterleaveGroup(Instr);
   }
 
+  /// Returns true if gaps in \p Group accessed by \p I must be masked, i.e.
+  /// no scalar iteration guarantees that speculative accesses stay in bounds.
+  bool needsMaskForGaps(const InterleaveGroup<Instruction> *Group,
+                        Instruction *I) const {
+    return (isa<LoadInst>(I) && Group->requiresScalarEpilogue() &&
+            !requiresScalarEpilogue(/*IsVectorizing=*/true)) ||
+           (isa<StoreInst>(I) && !Group->isFull());
+  }
+
   /// Returns true if we're required to use a scalar epilogue for at least
   /// the final iteration of the original loop.
   bool requiresScalarEpilogue(bool IsVectorizing) const {
+    if (peelLastIteration())
+      return true;
     if (!isEpilogueAllowed()) {
       LLVM_DEBUG(dbgs() << "LV: Loop does not require scalar epilogue\n");
       return false;
@@ -1051,6 +1062,8 @@ public:
   bool isEpilogueAllowed() const {
     return EpilogueLoweringStatus == CM_EpilogueAllowed;
   }
+
+  bool peelLastIteration() const { return PeelLastIteration; }
 
   /// Returns the TailFoldingStyle that is best for the current loop.
   TailFoldingStyle getTailFoldingStyle() const {
@@ -1317,6 +1330,11 @@ private:
   /// Under optsize and when the trip count is very small we don't allow any
   /// iterations to execute in the scalar loop.
   EpilogueLowering EpilogueLoweringStatus = CM_EpilogueAllowed;
+
+  /// True if the last iteration is peeled off a vector loop and
+  /// executed by the scalar loop, so that interleave groups with gaps can be
+  /// widened without masking the gaps.
+  bool PeelLastIteration = false;
 
   /// Control finally chosen tail folding style.
   TailFoldingStyle ChosenTailFoldingStyle = TailFoldingStyle::None;
@@ -2557,14 +2575,8 @@ bool LoopVectorizationCostModel::interleavedAccessCanBeWidened(
   // load, or any gaps in a store-access).
   bool PredicatedAccessRequiresMasking =
       blockNeedsPredicationForAnyReason(I->getParent()) && isMaskRequired(I);
-  bool LoadAccessWithGapsRequiresEpilogMasking =
-      isa<LoadInst>(I) && Group->requiresScalarEpilogue() &&
-      !isEpilogueAllowed();
-  bool StoreAccessWithGapsRequiresMasking =
-      isa<StoreInst>(I) && !Group->isFull();
-  if (!PredicatedAccessRequiresMasking &&
-      !LoadAccessWithGapsRequiresEpilogMasking &&
-      !StoreAccessWithGapsRequiresMasking)
+  bool NeedsMaskForGaps = needsMaskForGaps(Group, I);
+  if (!PredicatedAccessRequiresMasking && !NeedsMaskForGaps)
     return true;
 
   // If masked interleaving is required, we expect that the user/target had
@@ -2577,8 +2589,6 @@ bool LoopVectorizationCostModel::interleavedAccessCanBeWidened(
     return false;
 
   // TODO: Support interleaved access that requires a gap mask for scalable VFs.
-  bool NeedsMaskForGaps = LoadAccessWithGapsRequiresEpilogMasking ||
-                          StoreAccessWithGapsRequiresMasking;
   if (VF.isScalable() && NeedsMaskForGaps)
     return false;
 
@@ -2988,7 +2998,7 @@ LoopVectorizationCostModel::computeMaxVF(ElementCount UserVF, unsigned UserIC) {
       ExpectedTC->getFixedValue() <=
           TTI.getMinTripCountTailFoldingThreshold()) {
     // Divisible loops need no tail folding and are not subject to its minimum
-    // trip count.
+    // trip count. Scalable groups with tail gaps still need a scalar iteration.
     std::optional<uint64_t> MaxRuntimeVF = MaxFactors.FixedVF.getFixedValue();
     if (MaxFactors.ScalableVF) {
       if (auto ScalableVF =
@@ -2997,7 +3007,9 @@ LoopVectorizationCostModel::computeMaxVF(ElementCount UserVF, unsigned UserIC) {
       else
         MaxRuntimeVF = std::nullopt;
     }
-    if (MaxRuntimeVF && TripCountIsDivisible(*MaxRuntimeVF))
+    if (MaxRuntimeVF &&
+        !(MaxFactors.ScalableVF && InterleaveInfo.requiresScalarEpilogue()) &&
+        TripCountIsDivisible(*MaxRuntimeVF))
       return MaxFactors;
 
     // If we have a low-trip-count, and the fixed-width VF is known to divide
@@ -4359,9 +4371,7 @@ LoopVectorizationCostModel::getInterleaveGroupCost(Instruction *I,
       Indices.push_back(IF);
 
   // Calculate the cost of the whole interleaved group.
-  bool UseMaskForGaps =
-      (Group->requiresScalarEpilogue() && !isEpilogueAllowed()) ||
-      (isa<StoreInst>(I) && !Group->isFull());
+  bool UseMaskForGaps = needsMaskForGaps(Group, I);
   InstructionCost Cost = TTI.getInterleavedMemoryOpCost(
       InsertPos->getOpcode(), WideVecTy, Group->getFactor(), Indices,
       Group->getAlign(), AS, Config.CostKind, isMaskRequired(I),
@@ -5324,6 +5334,8 @@ void LoopVectorizationPlanner::plan(ElementCount UserVF, unsigned UserIC) {
     }
 
     ScalarEvolution &SE = *PSE.getSE();
+    bool HasScalableTailGap = MaxFactors.ScalableVF &&
+                             CM->InterleaveInfo.requiresScalarEpilogue();
     bool NoTailFoldingNeeded = false;
     if (MaxRuntimeVF &&
         (OrigLoop->getExitingBlock() == OrigLoop->getLoopLatch() ||
@@ -5331,6 +5343,7 @@ void LoopVectorizationPlanner::plan(ElementCount UserVF, unsigned UserIC) {
       const SCEV *TripCount =
           vputils::getSCEVExprForVPValue(VPlan1->getTripCount(), PSE);
       NoTailFoldingNeeded =
+          !HasScalableTailGap &&
           SE.getURemExpr(SE.applyLoopGuards(TripCount, OrigLoop),
                         SE.getConstant(TripCount->getType(),
                                        *MaxRuntimeVF * std::max(UserIC, 1u)))
@@ -5371,11 +5384,19 @@ void LoopVectorizationPlanner::plan(ElementCount UserVF, unsigned UserIC) {
         }
       }
     }
+    CM->PeelLastIteration =
+        HasScalableTailGap && CM->foldTailWithEVL() &&
+        CM->EpilogueLoweringStatus == CM_EpilogueNotNeededFoldTail;
   }
 
   if (CM->foldTailByMasking()) {
     Legal->prepareToFoldTailByMasking();
     RUN_VPLAN_PASS(VPlanTransforms::foldTailByMasking, *VPlan1);
+  }
+  if (CM->peelLastIteration()) {
+    RUN_VPLAN_PASS(VPlanTransforms::peelLastIteration, *VPlan1, PSE);
+    LLVM_DEBUG(dbgs() << "LV: Peeling the last iteration to handle interleave "
+                        "groups with gaps.\n");
   }
   RUN_VPLAN_PASS(VPlanTransforms::introduceMasksAndLinearize, *VPlan1);
 
@@ -6743,7 +6764,7 @@ VPlanPtr LoopVectorizationPlanner::tryToBuildVPlan(VPlanPtr Plan,
   // for this VPlan, replace the Recipes widening its memory instructions with a
   // single VPInterleaveRecipe at its insertion point.
   RUN_VPLAN_PASS(VPlanTransforms::createInterleaveGroups, *Plan,
-                 InterleaveGroups, CM->isEpilogueAllowed());
+                 InterleaveGroups, CM->requiresScalarEpilogue(true));
 
   // Convert memory recipes to strided access recipes if the strided access is
   // legal and profitable.

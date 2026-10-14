@@ -367,12 +367,13 @@ struct VPlanTransforms {
 
   // For each Interleave Group in \p InterleaveGroups replace the Recipes
   // widening its memory instructions with a single VPInterleaveRecipe at its
-  // insertion point.
+  // insertion point. \p ScalarEpilogueGuaranteed indicates whether a scalar
+  // epilogue is guaranteed to execute.
   static void createInterleaveGroups(
       VPlan &Plan,
       const SmallPtrSetImpl<const InterleaveGroup<Instruction> *>
           &InterleaveGroups,
-      const bool &EpilogueAllowed);
+      bool ScalarEpilogueGuaranteed);
 
   /// Transform widen memory recipes into strided access recipes when legal
   /// and profitable. Clamps \p Range to maintain consistency with widen
@@ -591,6 +592,12 @@ struct VPlanTransforms {
   /// Any VPInstruction::ExtractLastLanes are also updated to extract from the
   /// last active lane of the header mask.
   static void foldTailByMasking(VPlan &Plan);
+
+  /// Reserve the original final iteration for the scalar loop by reducing the
+  /// plan's iteration budget by one, without changing program uses of TC.
+  /// Must run after foldTailByMasking for tail-folded plans, and before
+  /// materializing trip counts, masks, and iteration checks.
+  static void peelLastIteration(VPlan &Plan, PredicatedScalarEvolution &PSE);
 
   /// Predicate and linearize the control-flow in the only loop region of
   /// \p Plan.

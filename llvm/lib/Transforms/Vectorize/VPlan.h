@@ -4850,16 +4850,20 @@ class VPlan {
   /// Holds the name of the VPlan, for printing.
   std::string Name;
 
-  /// Represents the trip count of the original loop, for folding
-  /// the tail.
+  /// Represents the iteration budget of the original loop, excluding its final
+  /// scalar iteration if peeled, for folding the tail.
   VPValue *TripCount = nullptr;
 
-  /// Represents the backedge taken count of the original loop, for folding
-  /// the tail. It equals TripCount - 1.
+  /// Represents the backedge taken count for the iteration budget, excluding
+  /// the original final scalar iteration if peeled. It equals TripCount - 1.
   VPSymbolicValue *BackedgeTakenCount = nullptr;
 
   /// Represents the vector trip count.
   VPSymbolicValue VectorTripCount;
+
+  /// True if the final original loop iteration is executed by the scalar
+  /// epilogue instead of the vector loop.
+  bool LastIterationPeeled = false;
 
   /// Represents the vectorization factor of the loop.
   VPSymbolicValue VF;
@@ -4988,7 +4992,8 @@ public:
   /// Returns true if \p VPBB is an exit block.
   bool isExitBlock(VPBlockBase *VPBB);
 
-  /// The trip count of the original loop.
+  /// The iteration budget, excluding the original final scalar iteration if
+  /// peeled.
   VPValue *getTripCount() const {
     assert(TripCount && "trip count needs to be set before accessing it");
     return TripCount;
@@ -5001,15 +5006,19 @@ public:
     TripCount = NewTripCount;
   }
 
-  /// Resets the trip count for the VPlan. The caller must make sure all uses of
-  /// the original trip count have been replaced.
+  /// Resets the iteration budget for the VPlan without replacing uses of the
+  /// previous value, which may also be used by the original program.
   void resetTripCount(VPValue *NewTripCount) {
-    assert(TripCount && NewTripCount && TripCount->user_empty() &&
+    assert(TripCount && NewTripCount &&
            "TripCount must be set when resetting");
     TripCount = NewTripCount;
   }
 
-  /// The backedge taken count of the original loop.
+  bool hasLastIterationPeeled() const { return LastIterationPeeled; }
+  void markLastIterationPeeled() { LastIterationPeeled = true; }
+
+  /// The backedge taken count for the iteration budget, excluding the original
+  /// final scalar iteration if peeled.
   VPValue *getOrCreateBackedgeTakenCount() {
     // BTC shares the canonical IV type with VectorTripCount.
     if (!BackedgeTakenCount)
