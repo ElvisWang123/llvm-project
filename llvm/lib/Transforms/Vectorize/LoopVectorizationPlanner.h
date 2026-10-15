@@ -1058,6 +1058,12 @@ private:
   /// be built.
   VPlanPtr tryToBuildVPlan1();
 
+  /// Compute feasible VF bounds and select tail folding and last-iteration
+  /// peeling using the initial plan. Return no factors if vectorization fails.
+  FixedScalableVFPair computeMaxVFAndTailFolding(VPlan &Plan,
+                                               ElementCount UserVF,
+                                               unsigned UserIC);
+
   /// Build a VPlan using VPRecipes according to the information gathered by
   /// Legal and VPlan-based analysis. For outer loops, performs basic recipe
   /// conversion only. For inner loops, \p Range's largest included VF is
